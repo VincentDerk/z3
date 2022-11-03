@@ -303,6 +303,7 @@ namespace smt {
         else {
             justification* j = mk_justification(justification_proof_wrapper(*this, pr));
             m_clause_proof.add(l, CLS_AUX, j);
+            IF_VERBOSE(900, verbose_stream() << "(smt.circuit): assigned " << l << " due to default assert.\n";);
             assign(l, j);
             mark_as_relevant(l);
         }
@@ -1387,9 +1388,8 @@ namespace smt {
                 return nullptr; // clause is equivalent to true;
             }
             DEBUG_CODE(for (literal lit : simp_lits) SASSERT(get_assignment(lit) == l_true););
-            if (!simp_lits.empty()) {
+            if (!simp_lits.empty())
                 j = mk_justification(unit_resolution_justification(*this, j, simp_lits.size(), simp_lits.data()));
-            }
             break;
         }
         case CLS_TH_LEMMA:
@@ -1437,12 +1437,10 @@ namespace smt {
                 inc_ref(l2);
                 m_watches[(~l1).index()].insert_literal(l2);
                 m_watches[(~l2).index()].insert_literal(l1);
-                if (get_assignment(l1) == l_false) {
+                if (get_assignment(l1) == l_false)
                     assign(l2, b_justification(~l1));
-                }
-                else if (get_assignment(l2) == l_false) {
+                else if (get_assignment(l2) == l_false)
                     assign(l1, b_justification(~l2));
-                }
                 m_clause_proof.add(l1, l2, k, j);
                 m_stats.m_num_mk_bin_clause++;
                 return nullptr;
@@ -1462,8 +1460,7 @@ namespace smt {
                 if (k == CLS_LEARNED) {
                     int w2_idx  = select_learned_watch_lit(cls);
                     cls->swap_lits(1, w2_idx);
-                }
-                else {
+                } else {
                     SASSERT(k == CLS_TH_LEMMA);
                     int w1_idx = select_watch_lit(cls, 0);
                     cls->swap_lits(0, w1_idx);
@@ -1491,8 +1488,7 @@ namespace smt {
                 }
                 if (reinit)
                     mark_for_reinit(cls, iscope_lvl, save_atoms);
-            }
-            else {
+            } else {
                 m_aux_clauses.push_back(cls);
                 add_watch_literal(cls, 0);
                 add_watch_literal(cls, 1);

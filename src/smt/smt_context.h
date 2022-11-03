@@ -28,6 +28,8 @@ Revision History:
 #include "smt/smt_justification.h"
 #include "smt/smt_bool_var_data.h"
 #include "smt/smt_clause_proof.h"
+#include "smt/smt_circuit.h"
+#include "smt/lit_assignments.h"
 #include "smt/smt_theory.h"
 #include "smt/smt_quantifier.h"
 #include "smt/smt_statistics.h"
@@ -218,6 +220,15 @@ namespace smt {
 
         // -----------------------------------
         //
+        // Circuit generation
+        //
+        // -----------------------------------
+        smt_circuit                 m_smt_circuit;
+        lit_assignments             decision_stack;
+        //TODO: cache
+
+        // -----------------------------------
+        //
         // Unsat core extraction
         //
         // -----------------------------------
@@ -244,33 +255,21 @@ namespace smt {
         //
         // -----------------------------------
     public:
-        ast_manager & get_manager() const {
-            return m;
-        }
+        ast_manager & get_manager() const { return m; }
 
-        th_rewriter & get_rewriter() {
-            return m_rewriter;
-        }
+        th_rewriter & get_rewriter() { return m_rewriter; }
 
-        smt_params & get_fparams() {
-            return m_fparams;
-        }
+        smt_params & get_fparams() { return m_fparams; }
 
-        params_ref const & get_params() {
-            return m_params;
-        }
+        params_ref const & get_params() { return m_params; }
 
         void updt_params(params_ref const& p);
 
         bool get_cancel_flag();
 
-        region & get_region() {
-            return m_region;
-        }
+        region & get_region() { return m_region; }
 
-        bool relevancy() const {
-            return relevancy_lvl() > 0;
-        }
+        bool relevancy() const { return relevancy_lvl() > 0; }
 
         unsigned relevancy_lvl() const;
 
@@ -285,29 +284,17 @@ namespace smt {
         /**
            \brief Similar to get_enode, but returns 0 if n is to e_internalized.
         */
-        enode * find_enode(expr const * n) const {
-            return m_app2enode.get(n->get_id(), 0);
-        }
+        enode * find_enode(expr const * n) const { return m_app2enode.get(n->get_id(), 0); }
 
-        void reset_bool_vars() {
-            m_expr2bool_var.reset();
-        }
+        void reset_bool_vars() { m_expr2bool_var.reset(); }
 
-        bool_var get_bool_var(expr const * n) const {
-            return m_expr2bool_var[n->get_id()];
-        }
+        bool_var get_bool_var(expr const * n) const { return m_expr2bool_var[n->get_id()]; }
 
-        bool_var get_bool_var(enode const * n) const {
-            return get_bool_var(n->get_expr());
-        }
+        bool_var get_bool_var(enode const * n) const { return get_bool_var(n->get_expr()); }
 
-        bool_var get_bool_var_of_id(unsigned id) const {
-            return m_expr2bool_var[id];
-        }
+        bool_var get_bool_var_of_id(unsigned id) const { return m_expr2bool_var[id]; }
 
-        bool_var get_bool_var_of_id_option(unsigned id) const {
-            return m_expr2bool_var.get(id, null_bool_var);
-        }
+        bool_var get_bool_var_of_id_option(unsigned id) const { return m_expr2bool_var.get(id, null_bool_var); }
 
 #if USE_BOOL_VAR_VECTOR
 
@@ -330,9 +317,7 @@ namespace smt {
 
         literal get_literal(expr * n) const;
 
-        bool has_enode(bool_var v) const {
-            return m_bdata[v].is_enode();
-        }
+        bool has_enode(bool_var v) const { return m_bdata[v].is_enode(); }
 
         enode * bool_var2enode(bool_var v) const {
             SASSERT(m_bdata[v].is_enode());
@@ -350,37 +335,21 @@ namespace smt {
             return n == m_false_enode ? false_literal : literal(enode2bool_var(n));
         }
 
-        unsigned get_num_bool_vars() const {
-            return m_b_internalized_stack.size();
-        }
+        unsigned get_num_bool_vars() const { return m_b_internalized_stack.size(); }
 
-        bool_var_data & get_bdata(bool_var v) {
-            return m_bdata[v];
-        }
+        bool_var_data & get_bdata(bool_var v) { return m_bdata[v]; }
 
-        bool_var_data const & get_bdata(bool_var v) const {
-            return m_bdata[v];
-        }
+        bool_var_data const & get_bdata(bool_var v) const { return m_bdata[v]; }
 
-        lbool get_lit_assignment(unsigned lit_idx) const {
-            return static_cast<lbool>(m_assignment[lit_idx]);
-        }
+        lbool get_lit_assignment(unsigned lit_idx) const { return static_cast<lbool>(m_assignment[lit_idx]); }
 
-        lbool get_assignment(literal l) const {
-            return get_lit_assignment(l.index());
-        }
+        lbool get_assignment(literal l) const { return get_lit_assignment(l.index()); }
 
-        lbool get_assignment(bool_var v) const {
-            return get_assignment(literal(v));
-        }
+        lbool get_assignment(bool_var v) const { return get_assignment(literal(v)); }
 
-        literal_vector const & assigned_literals() const {
-            return m_assigned_literals;
-        }
+        literal_vector const & assigned_literals() const { return m_assigned_literals; }
 
-        watch_list const& get_watch(literal l) const {
-            return m_watches[l.index()];
-        }
+        watch_list const& get_watch(literal l) const { return m_watches[l.index()]; }
 
         lbool get_assignment(expr * n) const;
 
@@ -391,9 +360,7 @@ namespace smt {
 
         void get_assignments(expr_ref_vector& assignments);
 
-        b_justification get_justification(bool_var v) const {
-            return get_bdata(v).justification();
-        }
+        b_justification get_justification(bool_var v) const { return get_bdata(v).justification(); }
 
         void set_justification(bool_var v, bool_var_data& d, b_justification const& j);
 
@@ -415,25 +382,17 @@ namespace smt {
         void set_activity(bool_var v, double act) { m_activity[v] = act; }
 
         void activity_changed(bool_var v, bool increased) {
-            if (increased) {
+            if (increased)
                 m_case_split_queue->activity_increased_eh(v);
-            }
-            else {
+            else
                 m_case_split_queue->activity_decreased_eh(v);
-            }
         }
 
-        bool is_assumption(bool_var v) const {
-            return get_bdata(v).m_assumption;
-        }
+        bool is_assumption(bool_var v) const { return get_bdata(v).m_assumption; }
 
-        bool is_assumption(literal l) const {
-            return is_assumption(l.var());
-        }
+        bool is_assumption(literal l) const { return is_assumption(l.var()); }
 
-        bool is_marked(bool_var v) const {
-            return get_bdata(v).m_mark;
-        }
+        bool is_marked(bool_var v) const { return get_bdata(v).m_mark; }
 
         void set_mark(bool_var v) {
             SASSERT(!is_marked(v));
@@ -448,62 +407,38 @@ namespace smt {
         /**
            \brief Return the scope level when v was assigned.
         */
-        unsigned get_assign_level(bool_var v) const {
-            return get_bdata(v).m_scope_lvl;
-        }
+        unsigned get_assign_level(bool_var v) const { return get_bdata(v).m_scope_lvl; }
 
-        unsigned get_assign_level(literal l) const {
-            return get_assign_level(l.var());
-        }
+        unsigned get_assign_level(literal l) const { return get_assign_level(l.var()); }
 
         /**
            \brief Return the scope level when v was internalized.
         */
-        unsigned get_intern_level(bool_var v) const {
-            return get_bdata(v).get_intern_level();
-        }
+        unsigned get_intern_level(bool_var v) const { return get_bdata(v).get_intern_level(); }
 
-        theory * get_theory(theory_id th_id) const {
-            return m_theories.get_plugin(th_id);
-        }
+        theory * get_theory(theory_id th_id) const { return m_theories.get_plugin(th_id); }
         
         ptr_vector<theory> const& theories() const { return m_theories.plugins(); }
 
-        ptr_vector<theory>::const_iterator begin_theories() const {
-            return m_theories.begin();
-        }
+        ptr_vector<theory>::const_iterator begin_theories() const { return m_theories.begin(); }
 
-        ptr_vector<theory>::const_iterator end_theories() const {
-            return m_theories.end();
-        }
+        ptr_vector<theory>::const_iterator end_theories() const { return m_theories.end(); }
 
-        unsigned get_scope_level() const {
-            return m_scope_lvl;
-        }
+        unsigned get_scope_level() const { return m_scope_lvl; }
 
-        unsigned get_base_level() const {
-            return m_base_lvl;
-        }
+        unsigned get_base_level() const { return m_base_lvl; }
 
-        bool at_base_level() const {
-            return m_scope_lvl == m_base_lvl;
-        }
+        bool at_base_level() const { return m_scope_lvl == m_base_lvl; }
 
-        unsigned get_search_level() const {
-            return m_search_lvl;
-        }
+        unsigned get_search_level() const { return m_search_lvl; }
 
-        bool at_search_level() const {
+        bool at_search_level() const { //TODO: V Meaning?
             return m_scope_lvl == m_search_lvl;
         }
 
-        bool tracking_assumptions() const {
-            return !m_assumptions.empty() && m_search_lvl > m_base_lvl;
-        }
+        bool tracking_assumptions() const { return !m_assumptions.empty() && m_search_lvl > m_base_lvl; }
 
-        expr * bool_var2expr(bool_var v) const {
-            return m_bool_var2expr[v];
-        }
+        expr * bool_var2expr(bool_var v) const { return m_bool_var2expr[v]; }
 
         void literal2expr(literal l, expr_ref & result) const {
             if (l == true_literal)
@@ -522,13 +457,9 @@ namespace smt {
             return result;
         }
 
-        bool is_true(enode const * n) const {
-            return n == m_true_enode;
-        }
+        bool is_true(enode const * n) const { return n == m_true_enode; }
 
-        bool is_false(enode const * n) const {
-            return n == m_false_enode;
-        }
+        bool is_false(enode const * n) const { return n == m_false_enode; }
 
         unsigned get_num_enodes_of(func_decl const * decl) const {
             unsigned id = decl->get_small_id();
@@ -552,39 +483,27 @@ namespace smt {
 
         ptr_vector<enode> const& enodes() const { return m_enodes; }
 
-        ptr_vector<enode>::const_iterator begin_enodes() const {
-            return m_enodes.begin();
-        }
+        ptr_vector<enode>::const_iterator begin_enodes() const { return m_enodes.begin(); }
 
-        ptr_vector<enode>::const_iterator end_enodes() const {
-            return m_enodes.end();
-        }
+        ptr_vector<enode>::const_iterator end_enodes() const { return m_enodes.end(); }
 
-        unsigned get_generation(quantifier * q) const {
-            return m_qmanager->get_generation(q);
-        }
+        unsigned get_generation(quantifier * q) const { return m_qmanager->get_generation(q); }
 
         /**
            \brief Return true if the logical context internalized universal quantifiers.
         */
-        bool internalized_quantifiers() const {
-            return !m_qmanager->empty();
-        }
+        bool internalized_quantifiers() const { return !m_qmanager->empty(); }
 
         /**
            \brief Return true if the logical context internalized or will internalize universal quantifiers.
         */
-        bool has_quantifiers() const {
-            return m_asserted_formulas.has_quantifiers();
-        }
+        bool has_quantifiers() const { return m_asserted_formulas.has_quantifiers(); }
 
         fingerprint * add_fingerprint(void * data, unsigned data_hash, unsigned num_args, enode * const * args, expr* def = nullptr) {
             return m_fingerprints.insert(data, data_hash, num_args, args, def);
         }
 
-        theory_id get_var_theory(bool_var v) const {
-            return get_bdata(v).get_theory();
-        }
+        theory_id get_var_theory(bool_var v) const { return get_bdata(v).get_theory(); }
 
         /** 
          * flag to toggle quantifier tracing.
@@ -614,9 +533,7 @@ namespace smt {
             m_trail_stack.push_back(new (m_region) TrailObject(obj));
         }
 
-        void push_trail_ptr(trail * ptr) {
-            m_trail_stack.push_back(ptr);
-        }
+        void push_trail_ptr(trail * ptr) { m_trail_stack.push_back(ptr); }
 
     protected:
 
@@ -696,25 +613,15 @@ namespace smt {
             return m.is_false(n) || (m.is_not(n) ? b_internalized(to_app(n)->get_arg(0)) : b_internalized(n));
         }
 
-        bool e_internalized(expr const * n) const {
-            return m_app2enode.get(n->get_id(), 0) != 0;
-        }
+        bool e_internalized(expr const * n) const { return m_app2enode.get(n->get_id(), 0) != 0; }
 
-        unsigned get_num_b_internalized() const {
-            return m_b_internalized_stack.size();
-        }
+        unsigned get_num_b_internalized() const { return m_b_internalized_stack.size(); }
 
-        expr * get_b_internalized(unsigned idx) const {
-            return  m_b_internalized_stack.get(idx);
-        }
+        expr * get_b_internalized(unsigned idx) const { return  m_b_internalized_stack.get(idx); }
 
-        unsigned get_num_e_internalized() const {
-            return m_e_internalized_stack.size();
-        }
+        unsigned get_num_e_internalized() const { return m_e_internalized_stack.size(); }
 
-        expr * get_e_internalized(unsigned idx) const {
-            return  m_e_internalized_stack.get(idx);
-        }
+        expr * get_e_internalized(unsigned idx) const { return  m_e_internalized_stack.get(idx); }
 
         /**
            \brief Return the position (in the assignment stack) of the decision literal at the given scope level.
@@ -732,13 +639,9 @@ namespace smt {
             return !m.proofs_enabled() && m_fparams.m_binary_clause_opt;
         }
     protected:
-        bool_var_data & get_bdata(expr const * n) {
-            return get_bdata(get_bool_var(n));
-        }
+        bool_var_data & get_bdata(expr const * n) { return get_bdata(get_bool_var(n)); }
 
-        bool_var_data const & get_bdata(expr const * n) const {
-            return get_bdata(get_bool_var(n));
-        }
+        bool_var_data const & get_bdata(expr const * n) const { return get_bdata(get_bool_var(n)); }
 
         typedef std::pair<expr *, bool> expr_bool_pair;
 
@@ -1168,9 +1071,7 @@ namespace smt {
 
     protected:
 
-        void decay_bvar_activity() {
-            m_bvar_inc *= m_fparams.m_inv_decay;
-        }
+        void decay_bvar_activity() { m_bvar_inc *= m_fparams.m_inv_decay; }
 
         bool simplify_clause(clause& cls);
 
@@ -1242,6 +1143,10 @@ namespace smt {
 
         lbool bounded_search();
 
+        lbool bounded_search_all();
+
+        bool start_next_model();
+
         final_check_status final_check();
 
         void check_proof(proof * pr);
@@ -1277,26 +1182,18 @@ namespace smt {
         // event handler for relevancy_propagator class
         void relevant_eh(expr * n);
 
-        bool is_relevant(expr * n) const {
-            return !relevancy() || is_relevant_core(n);
-        }
+        bool is_relevant(expr * n) const { return !relevancy() || is_relevant_core(n); }
 
-        bool is_relevant(enode * n) const {
-            return is_relevant(n->get_expr());
-        }
+        bool is_relevant(enode * n) const { return is_relevant(n->get_expr()); }
 
-        bool is_relevant(bool_var v) const {
-            return is_relevant(bool_var2expr(v));
-        }
+        bool is_relevant(bool_var v) const { return is_relevant(bool_var2expr(v)); }
 
         bool is_relevant(literal l) const {
             SASSERT(l != true_literal && l != false_literal);
             return is_relevant(l.var());
         }
 
-        bool is_relevant_core(literal l) const {
-            return is_relevant_core(bool_var2expr(l.var()));
-        }
+        bool is_relevant_core(literal l) const { return is_relevant_core(bool_var2expr(l.var())); }
 
         void mark_as_relevant(expr * n) { m_relevancy_propagator->mark_as_relevant(n); m_relevancy_propagator->propagate(); }
 
