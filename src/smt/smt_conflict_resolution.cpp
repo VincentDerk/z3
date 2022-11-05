@@ -484,19 +484,15 @@ namespace smt {
     bool conflict_resolution::resolve(b_justification conflict, literal not_l) {
         b_justification js;
         literal consequent;
-
-        if (!initialize_resolve(conflict, not_l, js, consequent)) {
+        if (!initialize_resolve(conflict, not_l, js, consequent))
             return false;
-        }
 
         unsigned idx = skip_literals_above_conflict_level();
-
         TRACE("conflict", m_ctx.display_literal_verbose(tout, not_l); m_ctx.display(tout << " ", conflict););
 
         // save space for first uip
         m_lemma.push_back(null_literal);
         m_lemma_atoms.push_back(nullptr);
-
         unsigned num_marks = 0;
         if (not_l != null_literal) {
             TRACE("conflict", tout << "not_l: "; m_ctx.display_literal_verbose(tout, not_l) << "\n";);
@@ -504,7 +500,6 @@ namespace smt {
         }
 
         do {
-
             if (get_manager().has_trace_stream()) {
                 get_manager().trace_stream() << "[resolve-process] ";
                 m_ctx.display_literal(get_manager().trace_stream(), ~consequent);
@@ -528,8 +523,7 @@ namespace smt {
                     SASSERT((*cls)[0] == consequent || (*cls)[1] == consequent);
                     if ((*cls)[0] == consequent) {
                         i = 1;
-                    }
-                    else {
+                    } else {
                         literal l = (*cls)[0];
                         SASSERT(consequent.var() != l.var());
                         process_antecedent(~l, num_marks);
@@ -560,10 +554,8 @@ namespace smt {
                 UNREACHABLE();
             }
 
-            while (true) {
-                literal l = m_assigned_literals[idx];
-                if (m_ctx.is_marked(l.var()))
-                    break;
+            literal l = m_assigned_literals[idx];
+            while(!m_ctx.is_marked(l.var())) {
                 CTRACE("conflict", m_ctx.get_assign_level(l) != m_conflict_lvl && m_ctx.get_assign_level(l) != m_ctx.get_base_level(),
                        tout << "assign_level(l): " << m_ctx.get_assign_level(l) << ", conflict_lvl: ";
                        tout << m_conflict_lvl << ", l: "; m_ctx.display_literal_verbose(tout, l);
@@ -574,6 +566,7 @@ namespace smt {
                         m_ctx.get_assign_level(l) == m_ctx.get_base_level());
                 SASSERT(idx > 0);
                 idx--;
+                l = m_assigned_literals[idx];
             }
 
             consequent     = m_assigned_literals[idx];
@@ -583,8 +576,7 @@ namespace smt {
             idx--;
             num_marks--;
             m_ctx.unset_mark(c_var);
-        }
-        while (num_marks > 0);
+        } while (num_marks > 0);
 
         TRACE("conflict", tout << "FUIP: "; m_ctx.display_literal(tout, consequent)<< "\n";);
 

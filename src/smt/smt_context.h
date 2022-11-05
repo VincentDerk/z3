@@ -181,8 +181,26 @@ namespace smt {
         literal_vector              m_assigned_literals;
         typedef std::pair<clause*, literal_vector> tmp_clause;
         vector<tmp_clause>          m_tmp_clauses;
+
+        /**
+         * An index in m_assigned_literals, used for constraint propagation.
+         * Any literal in m_assigned_literal[m_qhead:] is not yet propagated.
+         */
         unsigned                    m_qhead { 0 };
+
+        /**
+         * \brief Used to check whether there are new assigned literals at the base level.
+         */
         unsigned                    m_simp_qhead { 0 };
+
+        /**
+         * \brief m_simp_counter is used to balance the cost of simplify_clause.
+         * After executing simplify_clauses, the counter contains the approximate
+         * cost of executing simplify_clauses again.
+         *
+         * The approximate cost is the number of literal that will need to be visited.
+         * The counter is decremented each time we visit a variable during propagation.
+         */
         int                         m_simp_counter { 0 }; //!< can become negative
         scoped_ptr<case_split_queue> m_case_split_queue;
         double                      m_bvar_inc { 1.0 };
@@ -1146,6 +1164,13 @@ namespace smt {
         lbool bounded_search_all();
 
         bool start_next_model();
+
+        /**
+         * TODO
+         * Backjump
+         * @param new_lvl The new scope lvl to backjump to (cf. m_scope and m_scope_lvl)
+         */
+        void circuit_backjump(unsigned new_lvl);
 
         final_check_status final_check();
 

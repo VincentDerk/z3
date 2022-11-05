@@ -117,16 +117,23 @@ namespace {
 
         void pop_scope(unsigned num_scopes) override {}
 
+        /**
+         * Find the next case variable (and phase) to split on. The result is stored in next and phase.
+         * @param next When no variable was found to branch on, next is set to null_bool_var
+         * @param phase Is set to l_undef
+         */
         void next_case_split(bool_var & next, lbool & phase) override {
             phase = l_undef;
-            
+
+            // with some chance, TRY to choose random variable.
             if (m_context.get_random_value() < static_cast<int>(m_params.m_random_var_freq * random_gen::max_value())) {
                 next = m_context.get_random_value() % m_context.get_num_b_internalized(); 
                 TRACE("random_split", tout << "next: " << next << " get_assignment(next): " << m_context.get_assignment(next) << "\n";);
                 if (m_context.get_assignment(next) == l_undef)
                     return;
             }
-            
+
+            // find next undefined variable in m_queue
             while (!m_queue.empty()) {
                 next = m_queue.erase_min();
                 if (m_context.get_assignment(next) == l_undef)
