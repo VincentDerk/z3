@@ -314,7 +314,7 @@ namespace smt {
     }
 
     /**
-     * Binary constraint propagation TODO: V But also includes non-binary clause propagation stuff?
+     * Boolean constraint propagation
      * @return False if a conflict was found, otherwise True
      */
     bool context::bcp() {
@@ -324,9 +324,10 @@ namespace smt {
                 return true;
             }
             literal l      = m_assigned_literals[m_qhead];
+            std::cout << "Binary Propagating " << l << std::endl;
             SASSERT(get_assignment(l) == l_true);
-            m_qhead++; //TODO: V: Why? What is m_qhead?
-            m_simp_counter--;  //TODO: V: relevant?
+            m_qhead++;
+            m_simp_counter--;
             literal not_l  = ~l;
             SASSERT(get_assignment(not_l) == l_false);
             watch_list & w = m_watches[l.index()];
@@ -340,12 +341,14 @@ namespace smt {
                     switch (get_assignment(l)) {
                     case l_false:
                         m_stats.m_num_bin_propagations++;
-                        IF_VERBOSE(900, verbose_stream() << "(smt.circuit): binary conflict found with " << ~l << "\n";);
+                        //IF_VERBOSE(900, verbose_stream() << "(smt.circuit): binary conflict found with " << ~l << "\n";);
+                        std::cout << "(smt.circuit): binary conflict found with " << ~l << std::endl;
                         set_conflict(js, ~l);
                         return false;
                     case l_undef:
                         m_stats.m_num_bin_propagations++;
-                        IF_VERBOSE(900, verbose_stream() << "(smt.circuit): bcp literal " << l << " inferred due binary clause with " << ~not_l << ".\n";);
+                        //IF_VERBOSE(900, verbose_stream() << "(smt.circuit): bcp literal " << l << " inferred due binary clause with " << ~not_l << ".\n";);
+                        std::cout << "(smt.circuit): bcp literal " << l << " inferred due binary clause with " << ~not_l << std::endl;
                         assign_core(l, js);
                         break;
                     case l_true:
@@ -1825,7 +1828,6 @@ namespace smt {
        more case splits to be performed.
     */
     bool context::decide() {
-
         if (at_search_level() && !m_tmp_clauses.empty()) { //TODO: V, what does this do?
             switch (decide_clause()) {
             case l_true:  // already satisfied
@@ -1834,10 +1836,11 @@ namespace smt {
             case l_false: return false; // inconsistent
             }
         }
+
+        // -- determine var and phase --
         bool_var var;
         bool is_pos;
         bool used_queue = false;
-        
         if (!has_split_candidate(var, is_pos)) {
             // choose decision var and is_pos
             lbool phase = l_undef;
@@ -1857,6 +1860,7 @@ namespace smt {
                 }});
             is_pos = guess(var, phase);
         }
+        // -- perform decision --
         m_stats.m_num_decisions++;
         push_scope();
         TRACE("decide", tout << "splitting, lvl: " << m_scope_lvl << "\n";);
@@ -2055,10 +2059,7 @@ namespace smt {
             m_case_split_queue->unassign_var_eh(v);
         }
 
-        auto num_removed_lits = m_assigned_literals.size() - old_lim;
-        m_smt_circuit.backjump(m_assigned_literals.rbegin(), num_removed_lits);
         m_assigned_literals.shrink(old_lim);
-        decision_stack.shrink(old_lim);
         m_qhead = old_lim;
         SASSERT(m_qhead == m_assigned_literals.size());
     }
@@ -2504,9 +2505,8 @@ namespace smt {
                 is_taut = true;
                 // fallthrough
             case l_undef:
-                if (i != j) {
+                if (i != j)
                     cls.swap_lits(i, j);
-                }
                 j++;
                 break;
             }
@@ -2518,9 +2518,8 @@ namespace smt {
             SASSERT(j >= 2);
         }
 
-        if (is_taut) {
+        if (is_taut)
             return true;
-        }
 
         if (m.proofs_enabled() && !simp_lits.empty()) {
             SASSERT(m_scope_lvl == m_base_lvl);
@@ -2589,23 +2588,20 @@ namespace smt {
                                                                                     cls_js,
                                                                                     simp_lits.size(),
                                                                                     simp_lits.data()));
-                            }
-                            else {
+                            } else {
                                 js = alloc(unit_resolution_justification, cls_js, simp_lits.size(), simp_lits.data());
                                 // js took ownership of the justification object.
                                 cls->set_justification(nullptr);
                                 m_justifications.push_back(js);
                             }
                             set_justification(v0, m_bdata[v0], b_justification(js));
-                        }
-                        else
+                        } else
                             m_bdata[v0].set_axiom();
                     }
                 }
                 del_clause(true, cls);
                 num_del_clauses++;
-            }
-            else {
+            } else {
                 *it2 = *it;
                 ++it2;
                 m_simp_counter += cls->get_num_literals();
@@ -2620,6 +2616,7 @@ namespace smt {
        \brief Simplify the set of clauses if possible (solver is at base level).
     */
     void context::simplify_clauses() {
+        std::cout << "Simplify clauses happened." << std::endl;
         // Remark: when assumptions are used m_scope_lvl >= m_search_lvl > m_base_lvl. Therefore, no simplification is performed.
         if (m_scope_lvl > m_base_lvl)
             return;
@@ -3271,8 +3268,7 @@ namespace smt {
 
             if (lits.size() == 1) {
                 set_conflict(b_justification(), ~lits[0]);
-            }
-            else {
+            } else {
                 set_conflict(b_justification(tmp_clause.first), null_literal);
             }
             VERIFY(!resolve_conflict());
@@ -3982,38 +3978,54 @@ namespace smt {
         size_t new_size = decision_stack.size();
         size_t nb_removed_lits = old_size - new_size;
 
+        // m_smt_circuit: update
+        bool next_model_possible = m_smt_circuit.next_model();
+        SASSERT(next_model_possible); //Otherwise decision_stack and m_smt_circuit disagree. Would indicate bug
+
+        // undo necessary scopes
+        pop_scope(nb_removed_lits);
+
+        // re-add negated literal
+        smt::literal lit = decision_stack.assignments.back().lit;
+        push_scope(); //TODO: necessary? See resolve_cnflict()
+        assign(lit, b_justification::mk_axiom(), true);
+
+        // add negated literal
         // m_assigned_literals: update assignments
-        for(auto i = m_assigned_literals.size()-1; i >= new_size; i--) {
-            literal l                  = m_assigned_literals[i];
-            CTRACE("assign_core", l.var() == 13, tout << "unassign " << l << "\n";);
-            m_assignment[l.index()]    = l_undef;
-            m_assignment[(~l).index()] = l_undef;
-            bool_var v                 = l.var();
-            bool_var_data & d          = get_bdata(v);
-            d.set_null_justification();
-            m_case_split_queue->unassign_var_eh(v);
-        }
-        auto old_lim = decision_stack.size();
-        m_assigned_literals.shrink(old_lim);
-        m_qhead = old_lim-1; // -1 such that next propagation step considers the flipped decision
+//        auto old_lim = decision_stack.size();
+//        m_assigned_literals.shrink(old_lim);
+//        m_qhead = old_lim-1; // -1 such that next propagation step considers the flipped decision //TODO: needed?
         //SASSERT(m_qhead == m_assigned_literals.size());
+
+        std::cout << "\tm_assigned_literals: ";
+        for(auto l : m_assigned_literals) {
+            std::cout << "," << l;
+        }
+        std::cout << std::endl << "\tdecision_stack: ";
+        for(auto s : decision_stack) {
+            std::cout << "," << s.lit;
+        }
+        std::cout << std::endl;
         SASSERT(m_assigned_literals.size() == decision_stack.size());
+        SASSERT(m_assigned_literals.back() == decision_stack.assignments.back().lit);
 
         // m_assigned_literals, flip last decision.
-        m_assigned_literals.back().neg();
-        assert(m_assigned_literals.back() == decision_stack.back().lit);
-        literal flipped_decision = m_assigned_literals.back();
-        m_assignment[flipped_decision.index()]    = l_true;
-        m_assignment[(~flipped_decision).index()] = l_false;
-        bool_var_data & d = get_bdata(flipped_decision.var());
-        // set_justification(l.var(), d, j);         //TODO: do we need to change the following?
-        // d.m_scope_lvl           = d.m_scope_lvl;
-        d.m_phase_available        = true;
-        d.m_phase                  = !flipped_decision.sign(); //TODO: correct?
-        m_atom_propagation_queue.reset();   //TODO: do we need to change the following?
-        m_atom_propagation_queue.push_back(flipped_decision);
-        m_case_split_queue->assign_lit_eh(flipped_decision);
+//        m_assigned_literals.back().neg();
+//        assert(m_assigned_literals.back() == decision_stack.back().lit);
+//        literal flipped_decision = m_assigned_literals.back();
+//        m_assignment[flipped_decision.index()]    = l_true;
+//        m_assignment[(~flipped_decision).index()] = l_false;
+//        bool_var_data & d = get_bdata(flipped_decision.var());
+//        // set_justification(l.var(), d, j);         //TODO: do we need to change the following?
+//        // d.m_scope_lvl           = d.m_scope_lvl;
+//        d.m_phase_available        = true;
+//        d.m_phase                  = !flipped_decision.sign(); //TODO: correct?
+//        m_atom_propagation_queue.reset();   //TODO: do we need to change the following?
+//        m_atom_propagation_queue.push_back(flipped_decision);
+//        m_case_split_queue->assign_lit_eh(flipped_decision);
 
+        //TODO: Check what pop_scope does. Should I do m_assignment myself etc?
+        // Afterwards, check what decide() does to re-add back the flipped decision.
         //
         // if (m.has_trace_stream())
         //      trace_assign(l, j, decision);
@@ -4023,9 +4035,6 @@ namespace smt {
         //TODO: We still need to update m_assigment such that the decision is not only flipped in the decision stack and circuit, but also in the other structures.
         //TODO: Since we flipped, must we set something for propagate to work?
 
-        // m_smt_circuit: update
-        bool next_model_possible = m_smt_circuit.next_model();
-        SASSERT(next_model_possible); //Otherwise decision_stack and m_smt_circuit disagree. Would indicate bug
         return true;
     };
 
@@ -4256,6 +4265,7 @@ namespace smt {
             // to reset cached generations... I need them to rebuild the literals
             // of the new conflict clause.
             if (relevancy()) record_relevancy(num_lits, lits);
+            circuit_backjump(new_lvl);
             unsigned num_bool_vars = pop_scope_core(m_scope_lvl - new_lvl);
             SASSERT(m_scope_lvl == new_lvl);
             // the logical context may still be in conflict after
@@ -4350,6 +4360,19 @@ namespace smt {
             check_proof(m_unsat_proof);
         }
         return false;
+    }
+
+    /**
+     * Note: relies on the difference between m_assigned_literal.size() an s.m_assigned_literals_lim
+     * TODO: should we change this from arg new_lvl to num_removed_lits ??
+     */
+    void context::circuit_backjump(unsigned new_lvl) {
+        SASSERT(new_lvl < m_scope_lvl);
+        SASSERT(m_scope_lvl == m_scopes.size());
+        scope & s = m_scopes[new_lvl];
+        auto num_removed_lits = m_assigned_literals.size() - s.m_assigned_literals_lim;
+        m_smt_circuit.backjump(m_assigned_literals.back(), num_removed_lits);
+        decision_stack.flip_decision(s.m_assigned_literals_lim);
     }
 
     /*

@@ -99,6 +99,18 @@ public:
     void backjump(vector<sat::literal, false>::reverse_iterator unset_literals, size_t num_lits);
 
     /**
+     * TODO: update doc
+     * Jump back up the circuit to a literal that must be flipped in order to find a satisfying assignment
+     * (conflict clause learning related). While jumping back, the nodes that do not lead to a model are removed and
+     * some decision nodes are changed to propagation nodes.
+     * @param unset_literals A list of set literals that should now be unassigned, as part of the backjump.
+     * The literals in this list must be chronological: the order in which they appear must correspond to
+     * the reverse of their assignment order in this circuit. This list will be modified.
+     * @param num_lits The number of literals to unset.
+     */
+    void backjump(sat::literal last_lit, size_t num_lits);
+
+    /**
      * Print the circuit to stdout.
      */
     void print_circuit();

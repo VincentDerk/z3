@@ -64,6 +64,31 @@ public:
     auto flip_last_decision() -> bool;
 
     /**
+     * TODO: delete?
+     * Get the index of the last incomplete decision.
+     *
+     * The following conditions will hold:
+     * - assignments[result] is both decision and incomplete.
+     * - assignments[> result] are no decision or complete.
+     * @return The index of the last incomplete decision. If no incomplete decision remains,
+     * 0 is returned and one should check whether it is indeed an incomplete decision.
+     */
+    auto get_last_decision_index() -> size_t;
+
+    /**
+     * TODO: delete?
+     * Flip the incomplete decision at the given index to complete.
+     * @param index The index of the incomplete decision.
+     */
+    void flip_decision(size_t index) {
+        assert(index < assignments.size());
+        assert(assignments[index].decision);
+        assert(!assignments[index].complete);
+        assignments.shrink(index+1); //+1, shrink's arg is num remaining elements
+        assignments[index].complete = true;
+    }
+
+    /**
      * Shrink to the first num_lits assignments.
      * @param num_lits The number of assignments that must remain.
      */

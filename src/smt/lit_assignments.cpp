@@ -16,3 +16,13 @@ auto lit_assignments::flip_last_decision() -> bool {
     // return whether there was an incomplete decision
     return !assignments.empty();
 };
+
+auto lit_assignments::get_last_decision_index() -> size_t {
+    if (assignments.empty())
+        return 0;
+    size_t index = assignments.size() - 1;
+    while(index > 0 && !(assignments[index].decision && !assignments[index].complete))
+        index--;
+    //assert(index == 0 || (!assignments[index].complete && assignments[index].decision));
+    return index;
+}
