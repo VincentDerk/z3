@@ -2504,9 +2504,11 @@ public:
         CTRACE("arith", !m_new_bounds.empty(), tout << "flush bound axioms\n";);
 
         while (!m_new_bounds.empty()) {
+            // consider the last bound in m_new_bounds atoms
             lp_bounds atoms;            
             atoms.push_back(m_new_bounds.back());
             m_new_bounds.pop_back();
+            // add to atoms all bounds from m_new_bounds with the same var
             theory_var v = atoms.back()->get_var();
             for (unsigned i = 0; i < m_new_bounds.size(); ++i) {
                 if (m_new_bounds[i]->get_var() == v) {
