@@ -133,7 +133,7 @@ lemma_global_generalizer::subsumer::subsumer(ast_manager &a_m, bool ground_pob)
       m_ground_pob(ground_pob) {
     scoped_ptr<solver_factory> factory(
         mk_smt_strategic_solver_factory(symbol::null));
-    m_solver = (*factory)(m, params_ref::get_empty(), false, true, false,
+    m_solver = (*factory)(m, params_ref::get_empty(), false, true, false, false,
                           symbol::null);
 }
 

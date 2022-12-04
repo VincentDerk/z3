@@ -19,6 +19,7 @@ Author:
 Notes:
 
 --*/
+#include <iostream>
 #include "solver/solver_na2as.h"
 #include "ast/ast_smt2_pp.h"
 
@@ -65,6 +66,13 @@ lbool solver_na2as::check_sat_core(unsigned num_assumptions, expr * const * assu
     append_assumptions app(m_assumptions, num_assumptions, assumptions);
     TRACE("solver_na2as", display(tout););
     return check_sat_core2(m_assumptions.size(), m_assumptions.data());
+}
+
+lbool solver_na2as::check_ddnnf_core(unsigned num_assumptions, expr * const * assumptions) {
+    TRACE("smt_circuit_debug", tout << "called solver_na2as::check_ddnnf_core" << "\n";);
+    append_assumptions app(m_assumptions, num_assumptions, assumptions);
+    TRACE("solver_na2as", display(tout););
+    return check_ddnnf_core2(m_assumptions.size(), m_assumptions.data());
 }
 
 lbool solver_na2as::check_sat_cc(const expr_ref_vector &assumptions, vector<expr_ref_vector> const &clauses) {

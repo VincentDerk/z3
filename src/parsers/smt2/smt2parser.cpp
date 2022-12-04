@@ -94,6 +94,7 @@ namespace smt2 {
 
         symbol               m_assert;
         symbol               m_check_sat;
+        //symbol               m_generate_circuit;
         symbol               m_define_fun;
         symbol               m_define_const;
         symbol               m_model_add;
@@ -2607,11 +2608,26 @@ namespace smt2 {
             SASSERT(curr_id() == m_check_sat);
             next();
             unsigned spos = expr_stack().size();
-            parse_assumptions();
-            m_ctx.check_sat(expr_stack().size() - spos, expr_stack().data() + spos);
+            if (!m_ctx.produce_ddnnf()) {
+                parse_assumptions();
+                m_ctx.check_sat(expr_stack().size() - spos, expr_stack().data() + spos);
+            } else {
+                m_ctx.generate_circuit();
+            }
             next();
             expr_stack().shrink(spos);
         }
+
+//        void parse_generate_circuit() {
+//            //TODO: DELETE. We instead use check_sat with produce-ddnnf flag on.
+//            SASSERT(curr_is_identifier());
+//            SASSERT(curr_id() == m_generate_circuit);
+//            next();
+//            unsigned spos = expr_stack().size();
+//            m_ctx.generate_circuit(); //TODO:
+//            next();
+//            expr_stack().shrink(spos);
+//        }
 
         void parse_check_sat_assuming() {
             SASSERT(curr_is_identifier());
@@ -2953,6 +2969,10 @@ namespace smt2 {
                 parse_check_sat();
                 return;
             }
+//            if (s == m_generate_circuit) {
+//                parse_generate_circuit();
+//                return;
+//            }
             if (s == m_push) {
                 parse_push();
                 return;
@@ -3042,6 +3062,7 @@ namespace smt2 {
             m_lblpos(":lblpos"),
             m_assert("assert"),
             m_check_sat("check-sat"),
+            //m_generate_circuit("generate-circuit"),
             m_define_fun("define-fun"),
             m_define_const("define-const"),
             m_model_add("model-add"),

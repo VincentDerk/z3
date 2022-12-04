@@ -227,6 +227,7 @@ namespace opt {
         void fix_model(model_ref& _m) override;
         void collect_statistics(statistics& stats) const override;
         proof* get_proof() override { return nullptr; }
+        void get_ddnnf(expr_ref & e) override { SASSERT(false); } //TODO: not supported solver
         void get_labels(svector<symbol> & r) override;
         void get_unsat_core(expr_ref_vector & r) override;
         std::string reason_unknown() const override;

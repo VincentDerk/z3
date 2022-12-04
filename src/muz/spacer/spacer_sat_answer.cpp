@@ -53,7 +53,7 @@ proof_ref ground_sat_answer_op::operator()(pred_transformer &query) {
 
     scoped_ptr<solver_factory> factory(mk_smt_strategic_solver_factory(symbol::null));
     m_solver = (*factory)(m, params_ref::get_empty(),
-                          m.proofs_enabled() /*proofs*/, true /*models*/, false /*unsat_core*/, symbol::null /*logic*/);
+                          m.proofs_enabled() /*proofs*/, true /*models*/, false /*unsat_core*/, false /*ddnnf*/, symbol::null /*logic*/);
 
     // m_solver = mk_smt_solver(m, params_ref::get_empty(), symbol::null);
     vector<frame> todo, new_todo;

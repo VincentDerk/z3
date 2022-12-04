@@ -264,7 +264,7 @@ bool asserted_formulas::check_well_sorted() const {
     return true;
 }
 
-void asserted_formulas::reduce() {
+void asserted_formulas::reduce() { //TODO: V: Figure out how simplify works.
     if (inconsistent())
         return;
     if (canceled())

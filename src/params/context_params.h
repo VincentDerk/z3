@@ -38,6 +38,7 @@ public:
     bool             m_trace { false };
     bool             m_well_sorted_check { false };
     bool             m_model { true };
+    bool             m_ddnnf { false };
     bool             m_model_validate { false };
     bool             m_dump_models { false };
     bool             m_unsat_core { false };
@@ -59,7 +60,7 @@ public:
     /**
        \brief Goodies for extracting parameters for creating a solver object.
     */
-    void get_solver_params(params_ref & p, bool & proofs_enabled, bool & models_enabled, bool & unsat_core_enabled);
+    void get_solver_params(params_ref & p, bool & proofs_enabled, bool & models_enabled, bool & unsat_core_enabled, bool & ddnnf_enabled);
 
     static void collect_solver_param_descrs(param_descrs & d);
 

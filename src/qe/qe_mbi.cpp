@@ -537,9 +537,9 @@ namespace qe {
         rewrite(a);
         rewrite(b);
         TRACE("interpolator", tout << a << " " << b << "\n");        
-        solver_ref sA = sf(m, p, false /* no proofs */, true, true, symbol::null);
-        solver_ref sB = sf(m, p, false /* no proofs */, true, true, symbol::null);
-        solver_ref sNotA = sf(m, p, false /* no proofs */, true, true, symbol::null);
+        solver_ref sA = sf(m, p, false /* no proofs */, true, true, false, symbol::null);
+        solver_ref sB = sf(m, p, false /* no proofs */, true, true, false, symbol::null);
+        solver_ref sNotA = sf(m, p, false /* no proofs */, true, true, false, symbol::null);
         sA->assert_expr(a);
         sB->assert_expr(b);
         uflia_mbi pA(sA.get(), sNotA.get());

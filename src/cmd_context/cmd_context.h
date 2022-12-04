@@ -387,12 +387,14 @@ public:
     unsigned random_seed() const { return m_random_seed; }
     void set_random_seed(unsigned s) { m_random_seed = s; }
     bool produce_models() const;
+    bool produce_ddnnf() const;
     bool produce_proofs() const;
     bool produce_unsat_cores() const;
     bool well_sorted_check_enabled() const;
     bool validate_model_enabled() const;
     bool has_assertions() const { return !m_assertions.empty(); }
     void set_produce_models(bool flag);
+    void set_produce_ddnnf(bool flag);
     void set_produce_unsat_cores(bool flag);
     void set_produce_proofs(bool flag);
     void set_produce_unsat_assumptions(bool flag) { m_produce_unsat_assumptions = flag; }
@@ -499,6 +501,7 @@ public:
     void push(unsigned n);
     void pop(unsigned n);
     void check_sat(unsigned num_assumptions, expr * const * assumptions);
+    void generate_circuit();
     void get_consequences(expr_ref_vector const& assumptions, expr_ref_vector const& vars, expr_ref_vector & conseq);
     void reset_assertions();
     // display the result produced by a check-sat or check-sat-using commands in the regular stream
@@ -564,7 +567,7 @@ public:
     
     lbool check_sat(expr* e) override {
         if (!m_solver) {
-            m_solver = m_ctx.get_solver_factory()(m_ctx.m(), m_params, false, true, false, symbol::null);
+            m_solver = m_ctx.get_solver_factory()(m_ctx.m(), m_params, false, true, false, false, symbol::null);
         }
         m_solver->push();
         m_solver->assert_expr(e);

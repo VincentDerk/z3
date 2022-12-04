@@ -77,6 +77,7 @@ namespace smt {
         m_unsat_proof(m),
         m_dyn_ack_manager(*this, p),
         m_unknown("unknown"),
+        m_ddnnf(expr_ref(m)),
         m_unsat_core(m),
         m_mk_bool_var_trail(*this),
         m_mk_enode_trail(*this),
@@ -275,7 +276,8 @@ namespace smt {
      */
     void context::assign_core(literal l, b_justification j, bool decision) {
         IF_VERBOSE(900, verbose_stream() << "(smt.circuit): Assigned " << l << " "; display_literal_smt2(verbose_stream(), l) << " to true.\n";);
-        std::cout << "(smt.circuit): Assigned " << l << " "; display_literal_smt2(std::cout, l) << "\n";
+        TRACE("smt_circuit", tout << "Assigned " << l << " ";);
+        TRACE("smt_circuit", display_literal_smt2(tout, l) << " = " << l << "\n";);
         if (decision) {
             m_smt_circuit.decide(l);
             decision_stack.decide(l);
@@ -324,7 +326,7 @@ namespace smt {
                 return true;
             }
             literal l      = m_assigned_literals[m_qhead];
-            std::cout << "Binary Propagating " << l << std::endl;
+            TRACE("smt_circuit", tout << "Binary Propagating " << l << "\n";);
             SASSERT(get_assignment(l) == l_true);
             m_qhead++;
             m_simp_counter--;
@@ -342,13 +344,13 @@ namespace smt {
                     case l_false:
                         m_stats.m_num_bin_propagations++;
                         //IF_VERBOSE(900, verbose_stream() << "(smt.circuit): binary conflict found with " << ~l << "\n";);
-                        std::cout << "(smt.circuit): binary conflict found with " << ~l << std::endl;
+                        TRACE("smt_circuit", tout << "binary conflict found with " << ~l << "\n";);
                         set_conflict(js, ~l);
                         return false;
                     case l_undef:
                         m_stats.m_num_bin_propagations++;
                         //IF_VERBOSE(900, verbose_stream() << "(smt.circuit): bcp literal " << l << " inferred due binary clause with " << ~not_l << ".\n";);
-                        std::cout << "(smt.circuit): bcp literal " << l << " inferred due binary clause with " << ~not_l << std::endl;
+                        TRACE("smt_circuit", tout << "bcp literal " << l << " inferred due binary clause with " << ~not_l << "\n";);
                         assign_core(l, js);
                         break;
                     case l_true:
@@ -2616,7 +2618,7 @@ namespace smt {
        \brief Simplify the set of clauses if possible (solver is at base level).
     */
     void context::simplify_clauses() {
-        std::cout << "Simplify clauses happened." << std::endl;
+        TRACE("smt_circuit", tout << "Simplify clauses happened." << "\n";);
         // Remark: when assumptions are used m_scope_lvl >= m_search_lvl > m_base_lvl. Therefore, no simplification is performed.
         if (m_scope_lvl > m_base_lvl)
             return;
@@ -3518,6 +3520,39 @@ namespace smt {
         }
     }
 
+    /**
+       \brief Setup the logical context based on the current set of
+       asserted formulas and execute the check_all command.
+
+       \remark A logical context can only be configured at scope level 0,
+       and before internalizing any formulas.
+    */
+    lbool context::setup_and_check_all(bool reset_cancel) {
+        if (!check_preamble(reset_cancel)) return l_undef;
+        SASSERT(m_scope_lvl == 0);
+        SASSERT(!m_setup.already_configured());
+        setup_context(m_fparams.m_auto_config); //V: Irrelevant
+
+        //TODO: support parallel execution?
+//        if (m_fparams.m_threads > 1 && !m.has_trace_stream()) {
+//            parallel p(*this);
+//            expr_ref_vector asms(m);
+//            return p(asms);
+//        }
+
+        internalize_assertions();
+        expr_ref_vector theory_assumptions(m);
+        add_theory_assumptions(theory_assumptions);
+//        if (!theory_assumptions.empty()) {
+//            TRACE("search", tout << "Adding theory assumptions to context" << std::endl;);
+//            return check(0, nullptr, reset_cancel);
+//        }
+//        else {
+        TRACE("before_search", display(tout););
+        return check_finalize(search_all());
+//        }
+    }
+
     config_mode context::get_config_mode(bool use_static_features) const {
         if (!m_fparams.m_auto_config)
             return CFG_BASIC;
@@ -3659,6 +3694,58 @@ namespace smt {
         m_num_conflicts_since_restart = 0;
     }
 
+    lbool context::search_all() {
+        if (m_asserted_formulas.inconsistent()) {
+            asserted_inconsistent();
+            //TODO: if m_ddnnf = something.. then maybe it needs cleaning up?
+            m_ddnnf = expr_ref(m.mk_false(), m);
+            return l_false;
+        }
+        if (inconsistent()) {
+            VERIFY(!resolve_conflict());
+            //TODO: if m_ddnnf = something.. then maybe it needs cleaning up?
+            m_ddnnf = expr_ref(m.mk_false(), m);
+            return l_false;
+        }
+        if (get_cancel_flag())
+            return l_undef;
+        timeit tt(get_verbosity_level() >= 100, "smt.stats");
+        reset_model(); //TODO: reset circuit as well??
+        SASSERT(at_search_level());
+        TRACE("search", display(tout); display_enodes_lbls(tout););
+        TRACE("search_detail", m_asserted_formulas.display(tout););
+        init_search();
+        flet<bool> l(m_searching, true);
+        TRACE("after_init_search", display(tout););
+        IF_VERBOSE(2, verbose_stream() << "(smt.searching)\n";);
+        TRACE("search_lite", tout << "searching...\n";);
+        lbool    status            = l_undef;
+        unsigned curr_lvl          = m_scope_lvl;
+
+        SASSERT(!inconsistent());
+        status = bounded_search_all();
+        TRACE("search_bug", tout << "status: " << status << ", inconsistent: " << inconsistent() << "\n";);
+        TRACE("assigned_literals_per_lvl", display_num_assigned_literals_per_lvl(tout);
+            tout << ", num_assigned: " << m_assigned_literals.size() << "\n";);
+        // removed restart
+        auto restart_flag = restart(status, curr_lvl);
+        assert(!restart_flag);
+
+        TRACE("guessed_literals",
+              expr_ref_vector guessed_lits(m);
+                      get_guessed_literals(guessed_lits);
+                      tout << guessed_lits << "\n";);
+        //expr_ref (context::*fp)(smt::literal) const;
+        //fp = &context::literal2expr;
+        // create d-DNNF and store in m_ddnnf
+        mk_ddnnf();
+
+        // clean up
+        end_search();
+        //TODO: free smt_circuit??!
+        return status;
+    }
+
 
     lbool context::search() {
         if (m_asserted_formulas.inconsistent()) {
@@ -3791,7 +3878,7 @@ namespace smt {
         }
     }
 
-    lbool context::bounded_search_all() {
+    lbool context::bounded_search() {
         unsigned counter = 0;
 
         TRACE("bounded_search", tout << "starting bounded search...\n";);
@@ -3875,7 +3962,7 @@ namespace smt {
     }
 
     //TODO: Change name of this back to bounded_search_all, and the above method regular
-    lbool context::bounded_search() {
+    lbool context::bounded_search_all() {
         unsigned counter = 0;
         lbool found_model = l_false;
 
@@ -3892,22 +3979,22 @@ namespace smt {
 
                 if (!inconsistent()) {
                     if (resource_limits_exceeded())
-                        return (found_model == l_true) ? l_true : l_undef;
+                        return l_undef;
                     if (get_cancel_flag())
-                        return (found_model == l_true) ? l_true : l_undef;
+                        return l_undef;
 
                     if (m_num_conflicts_since_restart > m_restart_threshold && m_scope_lvl - m_base_lvl > 2) {
                         //TODO: remove?
                         exit(1);
                         TRACE("search_bug", tout << "bounded-search return undef, inconsistent: " << inconsistent() << "\n";);
-                        return (found_model == l_true) ? l_true : l_undef; // restart
+                        return l_undef; // restart
                     } //TODO: Is there a restart feature? Should we support this? Only restart if no model is found yet?
                     if (m_num_conflicts > m_fparams.m_max_conflicts) {
                         //TODO: remove?
                         exit(1);
                         TRACE("search_bug", tout << "bounded-search return undef, inconsistent: " << inconsistent() << "\n";);
                         m_last_search_failure = NUM_CONFLICTS;
-                        return (found_model == l_true) ? l_true : l_undef;
+                        return l_undef;
                     }
                 }
 
@@ -3921,9 +4008,9 @@ namespace smt {
             }
 
             if (resource_limits_exceeded() && !inconsistent())
-                return (found_model == l_true) ? l_true : l_undef;
+                return l_undef;
             if (get_cancel_flag())
-                return (found_model == l_true) ? l_true : l_undef;
+                return l_undef;
 
             if (m_base_lvl == m_scope_lvl && m_fparams.m_simplify_clauses)
                 simplify_clauses();
@@ -3945,7 +4032,7 @@ namespace smt {
 //                            display_literal_smt2(verbose_stream(), lit) << ";\n";
 //                        }
 //                        verbose_stream() << ")\n";
-                        m_smt_circuit.print_circuit();
+                        // m_smt_circuit.print_circuit();  // -- d-DNNF DEBUG INFO --
                         // start search for the next model (if possible)
                         if(start_next_model())
                             break;
@@ -3954,13 +4041,12 @@ namespace smt {
                         break;
                     case FC_GIVEUP:
                         //TODO: When does this occur?
-                        std::cout << "FC_GIVEUP happened...\n";
                         return l_undef;
                 }
             }
 
             if (resource_limits_exceeded() && !inconsistent())
-                return (found_model == l_true) ? l_true : l_undef;
+                return l_undef;
         }
     }
 
@@ -3973,8 +4059,10 @@ namespace smt {
         // decision_stack: flip last incomplete decision
         size_t old_size = decision_stack.size();
         bool decision_left = decision_stack.flip_last_decision();
-        if (!decision_left)
+        if (!decision_left) {
+            m_smt_circuit.finalize();
             return false; // no incomplete decision remained. we found every model.
+        }
         size_t new_size = decision_stack.size();
         size_t nb_removed_lits = old_size - new_size;
 
@@ -3997,15 +4085,15 @@ namespace smt {
 //        m_qhead = old_lim-1; // -1 such that next propagation step considers the flipped decision //TODO: needed?
         //SASSERT(m_qhead == m_assigned_literals.size());
 
-        std::cout << "\tm_assigned_literals: ";
-        for(auto l : m_assigned_literals) {
-            std::cout << "," << l;
-        }
-        std::cout << std::endl << "\tdecision_stack: ";
-        for(auto s : decision_stack) {
-            std::cout << "," << s.lit;
-        }
-        std::cout << std::endl;
+//        std::cout << "\tm_assigned_literals: ";
+//        for(auto l : m_assigned_literals) {
+//            std::cout << "," << l;
+//        }
+//        std::cout << std::endl << "\tdecision_stack: ";
+//        for(auto s : decision_stack) {
+//            std::cout << "," << s.lit;
+//        }
+//        std::cout << std::endl;
         SASSERT(m_assigned_literals.size() == decision_stack.size());
         SASSERT(m_assigned_literals.back() == decision_stack.assignments.back().lit);
 
@@ -4673,6 +4761,15 @@ namespace smt {
         return false;
     }
 
+    //TODO: clean up
+    /**
+     * After calling this method, context::m_ddnnf will store the d-DNNF representation of all models.
+     */
+    inline void context::mk_ddnnf() {
+        m_ddnnf = m_smt_circuit.as_expression(m, *this);
+        // Idea: somewhere it calls search_bounded_all(). In case this returns l_true, this mk_ddnnf() is called.
+    }
+
     void context::mk_proto_model() {
         if (m_model || m_proto_model || has_case_splits()) return;
         TRACE("get_model",
@@ -4713,6 +4810,10 @@ namespace smt {
                 return true;
         }
         return false;
+    }
+
+    void context::get_ddnnf(expr_ref & e) {
+        e = m_ddnnf.get();
     }
 
     void context::get_model(model_ref & mdl) {

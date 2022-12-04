@@ -139,6 +139,7 @@ public:
 void insert_max_memory(param_descrs & r);
 void insert_max_steps(param_descrs & r);
 void insert_produce_models(param_descrs & r);
+void insert_produce_ddnnf(param_descrs & r);
 void insert_produce_proofs(param_descrs & r);
 void insert_timeout(param_descrs & r);
 void insert_rlimit(param_descrs & r);

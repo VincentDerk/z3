@@ -18,6 +18,7 @@ Notes:
 --*/
 #pragma once
 
+#include <iostream>
 #include "tactic/user_propagator_base.h"
 #include "solver/check_sat_result.h"
 #include "solver/progress_callback.h"
@@ -30,7 +31,9 @@ class model_converter;
 class solver_factory {
 public:
     virtual ~solver_factory() = default;
-    virtual solver * operator()(ast_manager & m, params_ref const & p, bool proofs_enabled, bool models_enabled, bool unsat_core_enabled, symbol const & logic) = 0;
+    virtual solver * operator()(ast_manager & m, params_ref const & p,
+            bool proofs_enabled, bool models_enabled, bool unsat_core_enabled, bool ddnnf_enabled,
+            symbol const & logic) = 0;
 };
 
 solver_factory * mk_smt_strategic_solver_factory(symbol const & logic = symbol::null);
@@ -98,7 +101,17 @@ public:
        The user may optionally invoke it after init(m, logic).
     */
     virtual void set_produce_models(bool f) {}
-    
+
+    /**
+       \brief Enable/Disable ddnnf generation for this solver object.
+
+       It is invoked before init(m, logic).
+       The user may optionally invoke it after init(m, logic).
+    */
+    virtual void set_produce_ddnnf(bool f) {
+        TRACE("smt_circuit_debug", tout << "set_produce_ddnnf happened for instance of " << typeid(*this).name() << "\n";);
+    };
+
     /**
        \brief Add a new formula to the assertion stack.
     */
@@ -162,6 +175,16 @@ public:
     lbool check_sat(app_ref_vector const& asms) { return check_sat(asms.size(), (expr* const*)asms.data()); }
 
     lbool check_sat() { return check_sat(0, nullptr); }
+
+    /**
+       \brief Check if the set of assertions in the assertion stack is satisfiable modulo the given assumptions,
+       and create a d-DNNF representation of all models in the process.
+
+       If it is unsatisfiable, and unsat-core generation is enabled. Then, the unsat-core is a subset of these assumptions.
+    */
+
+    lbool check_ddnnf(expr_ref_vector const& asms) { return check_ddnnf(asms.size(), asms.data()); }
+    virtual lbool check_ddnnf(unsigned num_assumptions, expr * const * assumptions);
 
     /**
        \brief Check satisfiability modulo a cube and a clause.
@@ -278,6 +301,8 @@ public:
     };
 
     virtual lbool check_sat_core(unsigned num_assumptions, expr * const * assumptions) = 0;
+
+    virtual lbool check_ddnnf_core(unsigned num_assumptions, expr * const * assumptions) = 0;
  
 protected:
 

@@ -323,6 +323,10 @@ void insert_produce_models(param_descrs & r) {
     r.insert("produce_models", CPK_BOOL, "(default: false) model generation.");
 }
 
+void insert_produce_ddnnf(param_descrs & r) {
+    r.insert("produce_ddnnf", CPK_BOOL, "(default: false) d-DNNF generation.");
+}
+
 void insert_produce_proofs(param_descrs & r) {
     r.insert("produce_proofs", CPK_BOOL, "(default: false) proof generation.");
 }

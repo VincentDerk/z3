@@ -899,6 +899,7 @@ class repeat_tactical : public unary_tactical {
         bool models_enabled = in->models_enabled();
         bool proofs_enabled = in->proofs_enabled();
         bool cores_enabled  = in->unsat_core_enabled();
+        bool ddnnf_enabled = in->ddnnf_enabled();
 
         ast_manager & m = in->m();                                                                          
         goal_ref_buffer      r1;  
@@ -912,7 +913,7 @@ class repeat_tactical : public unary_tactical {
             return;
         }
         {
-            goal orig_in(g->m(), proofs_enabled, models_enabled, cores_enabled);
+            goal orig_in(g->m(), proofs_enabled, models_enabled, cores_enabled, ddnnf_enabled);
             orig_in.copy_from(*(g.get()));
             m_t->operator()(g, r1);                                                            
             if (r1.size() == 1 && is_equal(orig_in, *(r1[0]))) {

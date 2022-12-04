@@ -194,7 +194,8 @@ public:
         unsigned timeout   = p.get_uint("timeout", ctx.params().m_timeout);
         unsigned rlimit  =   p.get_uint("rlimit", ctx.params().rlimit());
         labels_vec labels;
-        goal_ref g = alloc(goal, m, ctx.produce_proofs(), ctx.produce_models(), ctx.produce_unsat_cores());
+        goal_ref g = alloc(goal, m, ctx.produce_proofs(), ctx.produce_models(), ctx.produce_unsat_cores(),
+                           ctx.produce_ddnnf());
         assert_exprs_from(ctx, *g);
         TRACE("check_sat_using", g->display(tout););
         model_ref           md;
@@ -304,7 +305,8 @@ public:
         {
             tactic & t = *(tref.get());
             ast_manager & m = ctx.m();
-            goal_ref g = alloc(goal, m, ctx.produce_proofs(), ctx.produce_models(), ctx.produce_unsat_cores());
+            goal_ref g = alloc(goal, m, ctx.produce_proofs(), ctx.produce_models(), ctx.produce_unsat_cores(),
+                               ctx.produce_ddnnf());
             assert_exprs_from(ctx, *g);
 
             unsigned timeout   = p.get_uint("timeout", ctx.params().m_timeout);

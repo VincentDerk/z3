@@ -448,8 +448,8 @@ public:
         expr_ref itp(m);
         solver_factory& sf = ctx.get_solver_factory();
         params_ref p;
-        solver_ref sA = sf(m, p, false /* no proofs */, true, true, symbol::null);
-        solver_ref sB = sf(m, p, false /* no proofs */, true, true, symbol::null);
+        solver_ref sA = sf(m, p, false /* no proofs */, true, true, false, symbol::null);
+        solver_ref sB = sf(m, p, false /* no proofs */, true, true, false, symbol::null);
         sA->assert_expr(a);
         sB->assert_expr(b);
         qe::prop_mbi_plugin pA(sA.get());
@@ -498,10 +498,10 @@ public:
         expr_ref itp(m);
         solver_factory& sf = ctx.get_solver_factory();
         params_ref p;
-        solver_ref sA = sf(m, p, false /* no proofs */, true, true, symbol::null);
-        solver_ref sB = sf(m, p, false /* no proofs */, true, true, symbol::null);
-        solver_ref sNotA = sf(m, p, false /* no proofs */, true, true, symbol::null);
-        solver_ref sNotB = sf(m, p, false /* no proofs */, true, true, symbol::null);
+        solver_ref sA = sf(m, p, false /* no proofs */, true, true, false,symbol::null);
+        solver_ref sB = sf(m, p, false /* no proofs */, true, true, false, symbol::null);
+        solver_ref sNotA = sf(m, p, false /* no proofs */, true, true, false, symbol::null);
+        solver_ref sNotB = sf(m, p, false /* no proofs */, true, true, false, symbol::null);
         sA->assert_expr(a);
         sB->assert_expr(b);
         qe::uflia_mbi pA(sA.get(), sNotA.get());
@@ -544,8 +544,8 @@ public:
         flatten_and(lits);
         solver_factory& sf = ctx.get_solver_factory();
         params_ref pa;
-        solver_ref s = sf(m, pa, false, true, true, symbol::null);
-        solver_ref se = sf(m, pa, false, true, true, symbol::null);
+        solver_ref s = sf(m, pa, false, true, true, false, symbol::null);
+        solver_ref se = sf(m, pa, false, true, true, false, symbol::null);
         s->assert_expr(lits);
         lbool r = s->check_sat();
         if (r != l_true) {

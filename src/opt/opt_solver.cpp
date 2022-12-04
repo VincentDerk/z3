@@ -202,6 +202,47 @@ namespace opt {
         return r;
     }
 
+    lbool opt_solver::check_ddnnf_core2(unsigned num_assumptions, expr * const * assumptions) {
+        SASSERT(false); // not supported solver
+        TRACE("opt_verbose", {
+            tout << "context size: " << m_context.size() << "\n";
+            for (unsigned i = 0; i < m_context.size(); ++i) {
+                tout << mk_pp(m_context.get_formula(i), m_context.m()) << "\n";
+            }
+        });
+        stopwatch w;
+        if (dump_benchmarks()) {
+            w.start();
+            std::stringstream file_name;
+            file_name << "opt_solver" << ++m_dump_count << ".smt2";
+            std::ofstream buffer(file_name.str());
+            to_smt2_benchmark(buffer, num_assumptions, assumptions, "opt_solver");
+            buffer.close();
+            IF_VERBOSE(1, verbose_stream() << "(created benchmark: " << file_name.str() << "...";
+                    verbose_stream().flush(););
+        }
+        lbool r;
+        m_last_model = nullptr;
+        if (m_first && num_assumptions == 0 && m_context.get_scope_level() == 0) {
+            r = m_context.setup_and_check_all();
+        }
+        else {
+            r = m_context.check(num_assumptions, assumptions);
+        }
+        r = adjust_result(r);
+        if (r == l_true) {
+            m_context.get_model(m_last_model);
+            if (m_models.size() == 1)
+                m_models.set(0, m_last_model.get());
+        }
+        m_first = false;
+        if (dump_benchmarks()) {
+            w.stop();
+            IF_VERBOSE(1, verbose_stream() << ".. " << r << " " << std::fixed << w.get_seconds() << ")\n";);
+        }
+        return r;
+    }
+
     bool opt_solver::maximize_objectives1(expr_ref_vector& blockers) {
         expr_ref blocker(m);
         for (unsigned i = 0; i < m_objective_vars.size(); ++i) {
@@ -367,6 +408,10 @@ namespace opt {
     
     proof * opt_solver::get_proof() {
         return m_context.get_proof();
+    }
+
+    void opt_solver::get_ddnnf(expr_ref & e) {
+        m_context.get_ddnnf(e);
     }
     
     std::string opt_solver::reason_unknown() const {

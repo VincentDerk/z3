@@ -330,6 +330,7 @@ protected:
     symbol      m_produce_unsat_cores;
     symbol      m_produce_unsat_assumptions;
     symbol      m_produce_models;
+    symbol      m_produce_ddnnf;
     symbol      m_produce_assignments;
     symbol      m_produce_assertions;
     symbol      m_regular_output_channel;
@@ -347,7 +348,7 @@ protected:
         return
             s == m_print_success || s == m_print_warning || s == m_expand_definitions ||
             s == m_interactive_mode || s == m_produce_proofs || s == m_produce_unsat_cores || s == m_produce_unsat_assumptions ||
-            s == m_produce_models || s == m_produce_assignments ||
+            s == m_produce_models || s == m_produce_ddnnf || s == m_produce_assignments ||
             s == m_regular_output_channel || s == m_diagnostic_output_channel ||
             s == m_random_seed || s == m_verbosity || s == m_global_decls || s == m_global_declarations ||
             s == m_produce_assertions || s == m_reproducible_resource_limit;
@@ -366,6 +367,7 @@ public:
         m_produce_unsat_cores(":produce-unsat-cores"),
         m_produce_unsat_assumptions(":produce-unsat-assumptions"),
         m_produce_models(":produce-models"),
+        m_produce_ddnnf(":produce-ddnnf"),
         m_produce_assignments(":produce-assignments"),
         m_produce_assertions(":produce-assertions"),
         m_regular_output_channel(":regular-output-channel"),
@@ -455,6 +457,9 @@ class set_option_cmd : public set_get_option_cmd {
         }
         else if (m_option == m_produce_models) {
             ctx.set_produce_models(to_bool(value));
+        }
+        else if (m_option == m_produce_ddnnf) {
+            ctx.set_produce_ddnnf(to_bool(value));
         }
         else if (m_option == m_produce_assignments) {
             ctx.set_produce_assignments(to_bool(value));
@@ -605,6 +610,9 @@ public:
         }
         else if (opt == m_produce_models) {
             print_bool(ctx, ctx.produce_models());
+        }
+        else if (opt == m_produce_ddnnf) {
+            print_bool(ctx, ctx.produce_ddnnf());
         }
         else if (opt == m_produce_assignments) {
             print_bool(ctx, ctx.produce_assignments());
@@ -895,6 +903,7 @@ void install_basic_cmds(cmd_context & ctx) {
     ctx.insert(alloc(get_consequences_cmd));
     ctx.insert(alloc(builtin_cmd, "assert", "<term>", "assert term."));
     ctx.insert(alloc(builtin_cmd, "check-sat", "<boolean-constants>*", "check if the current context is satisfiable. If a list of boolean constants B is provided, then check if the current context is consistent with assigning every constant in B to true."));
+    ctx.insert(alloc(builtin_cmd, "generate-circuit", nullptr, "Generate a d-DNNF circuit of the current context."));
     ctx.insert(alloc(builtin_cmd, "push", "<number>?", "push 1 (or <number>) scopes."));
     ctx.insert(alloc(builtin_cmd, "pop", "<number>?", "pop 1 (or <number>) scopes."));
     ctx.insert(alloc(builtin_cmd, "get-value", "(<term>+)", "evaluate the given terms in the current model."));

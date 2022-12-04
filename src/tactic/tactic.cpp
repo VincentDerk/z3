@@ -17,6 +17,7 @@ Notes:
 
 --*/
 #include<iomanip>
+#include <iostream>
 #include "tactic/tactic.h"
 #include "tactic/probe.h"
 #include "util/stopwatch.h"
@@ -213,6 +214,74 @@ lbool check_sat(tactic & t, goal_ref & g, model_ref & md, labels_vec & labels, p
     else {
         if (models_enabled && !r.empty()) {
             model_converter_ref mc = r[0]->mc();            
+            model_converter2model(m, mc.get(), md);
+            if (mc)
+                (*mc)(labels);
+        }
+        reason_unknown = "incomplete";
+        return l_undef;
+    }
+}
+
+lbool check_ddnnf(tactic & t, goal_ref & g, model_ref & md, expr_ref & ddnnf, labels_vec & labels, proof_ref & pr,
+                    expr_dependency_ref & core, std::string & reason_unknown) {
+    TRACE("smt_circuit_debug", tout << "called tactic.cpp::check_ddnnf" << "\n";);
+    SASSERT(g->ddnnf_enabled());
+    bool models_enabled = g->models_enabled();
+    bool cores_enabled  = g->unsat_core_enabled();
+    md   = nullptr;
+    ddnnf = nullptr;
+    pr   = nullptr;
+    core = nullptr;
+    ast_manager & m = g->m();
+    goal_ref_buffer r;
+    try {
+        exec(t, g, r);
+    }
+    catch (z3_exception & ex) {
+        reason_unknown = ex.msg();
+        if (r.size() > 0) pr = r[0]->pr(0);
+        return l_undef;
+    }
+    TRACE("tactic",
+          tout << "r.size(): " << r.size() << "\n";
+                  for (unsigned i = 0; i < r.size(); i++) r[i]->display_with_dependencies(tout););
+
+    if (r.size() > 0) {
+        pr = r[0]->pr(0);
+        CTRACE("tactic", pr, tout << pr << "\n";);
+    }
+
+
+    if (is_decided_sat(r)) {
+        model_converter_ref mc = r[0]->mc();
+        if (mc.get()) {
+            (*mc)(labels);
+            model_converter2model(m, mc.get(), md);
+        }
+        if (!m.inc()) {
+            reason_unknown = "canceled";
+            return l_undef;
+        }
+        if (!md) {
+            // create empty model.
+            md = alloc(model, m);
+        }
+        // get ddnnf
+        r[0]->get(ddnnf);
+        return l_true;
+    }
+    else if (is_decided_unsat(r)) {
+        goal * final = r[0];
+        SASSERT(m.is_false(final->form(0)));
+        pr = final->pr(0);
+        if (cores_enabled)  core = final->dep(0);
+        ddnnf = expr_ref(r[0]->m().mk_false(),m);
+        return l_false;
+    }
+    else {
+        if (models_enabled && !r.empty()) {
+            model_converter_ref mc = r[0]->mc();
             model_converter2model(m, mc.get(), md);
             if (mc)
                 (*mc)(labels);

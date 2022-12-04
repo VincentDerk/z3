@@ -117,6 +117,22 @@ namespace spacer {
         
         return set_status (m_solver.check_sat (m_assumptions));
     }
+
+    lbool iuc_solver::check_ddnnf_core (unsigned num_assumptions, expr * const *assumptions) {
+        SASSERT(false); //TODO not supported solver
+        // -- remove any old assumptions
+        m_assumptions.shrink(m_first_assumption);
+
+        // -- replace theory literals in background assumptions with proxies
+        mk_proxies (m_assumptions);
+        // -- in case mk_proxies added new literals, they are all background
+        m_first_assumption = m_assumptions.size ();
+
+        m_assumptions.append (num_assumptions, assumptions);
+        m_is_proxied = mk_proxies (m_assumptions, m_first_assumption);
+
+        return set_status (m_solver.check_ddnnf (m_assumptions));
+    }
     
     lbool iuc_solver::check_sat_cc(const expr_ref_vector &cube,
                                    vector<expr_ref_vector> const & clauses) {

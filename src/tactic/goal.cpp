@@ -44,7 +44,9 @@ std::ostream & operator<<(std::ostream & out, goal::precision p) {
 goal::goal(ast_manager & m, bool models_enabled, bool core_enabled):
     m_manager(m),
     m_ref_count(0),
+    m_ddnnf(expr_ref(m)),
     m_depth(0),
+    m_ddnnf_enabled(false),
     m_models_enabled(models_enabled),
     m_proofs_enabled(m.proofs_enabled()),
     m_core_enabled(core_enabled),
@@ -55,7 +57,9 @@ goal::goal(ast_manager & m, bool models_enabled, bool core_enabled):
 goal::goal(ast_manager & m, bool proofs_enabled, bool models_enabled, bool core_enabled):
     m_manager(m),
     m_ref_count(0),
+    m_ddnnf(expr_ref(m)),
     m_depth(0),
+    m_ddnnf_enabled(false),
     m_models_enabled(models_enabled),
     m_proofs_enabled(proofs_enabled),
     m_core_enabled(core_enabled),
@@ -64,10 +68,26 @@ goal::goal(ast_manager & m, bool proofs_enabled, bool models_enabled, bool core_
     SASSERT(!proofs_enabled || m.proofs_enabled());
     }
 
+goal::goal(ast_manager & m, bool proofs_enabled, bool models_enabled, bool core_enabled, bool ddnnf_enabled):
+        m_manager(m),
+        m_ref_count(0),
+        m_ddnnf(expr_ref(m)),
+        m_depth(0),
+        m_ddnnf_enabled(ddnnf_enabled),
+        m_models_enabled(models_enabled),
+        m_proofs_enabled(proofs_enabled),
+        m_core_enabled(core_enabled),
+        m_inconsistent(false),
+        m_precision(PRECISE) {
+    SASSERT(!proofs_enabled || m.proofs_enabled());
+}
+
 goal::goal(goal const & src):
     m_manager(src.m()),
     m_ref_count(0),
+    m_ddnnf(src.m_ddnnf),
     m_depth(0),
+    m_ddnnf_enabled(src.ddnnf_enabled()),
     m_models_enabled(src.models_enabled()),
     m_proofs_enabled(src.proofs_enabled()),
     m_core_enabled(src.unsat_core_enabled()),
@@ -81,7 +101,9 @@ goal::goal(goal const & src):
 goal::goal(goal const & src, bool):
     m_manager(src.m()),
     m_ref_count(0),
+    m_ddnnf(src.m_ddnnf),
     m_depth(src.m_depth),
+    m_ddnnf_enabled(src.ddnnf_enabled()),
     m_models_enabled(src.models_enabled()),
     m_proofs_enabled(src.proofs_enabled()),
     m_core_enabled(src.unsat_core_enabled()),

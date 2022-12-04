@@ -130,6 +130,7 @@ public:
     void pop(unsigned n) override;
     unsigned get_scope_level() const override { return m_solver.get_scope_level(); }
 
+    lbool check_ddnnf_core(unsigned num_assumptions, expr * const *assumptions) override;
     lbool check_sat_core(unsigned num_assumptions, expr * const *assumptions) override;
     lbool check_sat_cc(const expr_ref_vector &cube, vector<expr_ref_vector> const & clauses) override;
     void set_progress_callback(progress_callback *callback) override {
@@ -151,6 +152,7 @@ public:
     void get_unsat_core(expr_ref_vector &r) override;
     void get_model_core(model_ref &m) override {m_solver.get_model(m);}
     proof *get_proof() override {return m_solver.get_proof();}
+    void get_ddnnf(expr_ref & e) {m_solver.get_ddnnf(e);}
     std::string reason_unknown() const override { return m_solver.reason_unknown(); }
     void set_reason_unknown(char const* msg) override { m_solver.set_reason_unknown(msg); }
     void get_labels(svector<symbol> &r) override { m_solver.get_labels(r); }

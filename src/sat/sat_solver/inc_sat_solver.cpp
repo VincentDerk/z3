@@ -409,6 +409,15 @@ public:
         return nullptr;
     }
 
+    void get_ddnnf(expr_ref & e) override {
+        SASSERT(false); //TODO: not supported solver
+    }
+
+    lbool check_ddnnf_core(unsigned num_assumptions, expr* const* assumptions) override {
+        SASSERT(false); //TODO: not supported solver
+        return l_undef;
+    }
+
     expr_ref_vector last_cube(bool is_sat) {
         expr_ref_vector result(m);
         result.push_back(is_sat ? m.mk_true() : m.mk_false());

@@ -119,6 +119,11 @@ namespace smt {
         bool inconsistent();
 
         /**
+            \brief Setup the logical context and invoke check_all.
+        */
+        lbool setup_and_check_all();
+
+        /**
            \brief Setup the logical context and invoke check.
         */
         lbool setup_and_check();
@@ -168,6 +173,11 @@ namespace smt {
            \brief Return the proof of unsatisfiability associated with the last check command.
         */
         proof * get_proof();
+
+        /**
+           \brief Return the d-DNNF representation associated with the last check command.
+        */
+        void get_ddnnf(expr_ref & e);
 
         /**
            \brief Return the size of the unsat core associated with the last check command.

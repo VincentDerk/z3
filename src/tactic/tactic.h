@@ -134,6 +134,8 @@ tactic * mk_trace_tactic(char const * tag);
 
 void exec(tactic & t, goal_ref const & in, goal_ref_buffer & result);
 lbool check_sat(tactic & t, goal_ref & g, model_ref & md, labels_vec & labels, proof_ref & pr, expr_dependency_ref & core, std::string & reason_unknown);
+lbool check_ddnnf(tactic & t, goal_ref & g, model_ref & md, expr_ref & ddnnf, labels_vec & labels, proof_ref & pr, expr_dependency_ref & core, std::string & reason_unknown);
+
 
 // Throws an exception if goal \c in requires proof generation.
 void fail_if_proof_generation(char const * tactic_name, goal_ref const & in);

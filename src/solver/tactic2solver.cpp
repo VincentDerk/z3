@@ -19,6 +19,7 @@ Author:
 Notes:
 
 --*/
+#include <iostream>
 #include "ast/ast_translation.h"
 #include "ast/ast_pp.h"
 #include "tactic/tactic.h"
@@ -45,12 +46,15 @@ class tactic2solver : public solver_na2as {
     ref<model_converter>         m_mc;
     symbol                       m_logic;
     bool                         m_produce_models;
+    bool                         m_produce_ddnnf;
     bool                         m_produce_proofs;
     bool                         m_produce_unsat_cores;
     statistics                   m_stats;
     
 public:
-    tactic2solver(ast_manager & m, tactic * t, params_ref const & p, bool produce_proofs, bool produce_models, bool produce_unsat_cores, symbol const & logic);
+    tactic2solver(ast_manager & m, tactic * t, params_ref const & p,
+                  bool produce_proofs, bool produce_models, bool produce_unsat_cores, bool produce_ddnnf,
+                  symbol const & logic);
     ~tactic2solver() override;
 
     solver* translate(ast_manager& m, params_ref const& p) override;
@@ -59,6 +63,9 @@ public:
     void collect_param_descrs(param_descrs & r) override;
 
     void set_produce_models(bool f) override { m_produce_models = f; }
+    void set_produce_ddnnf(bool f) override {
+        m_produce_ddnnf = f;
+    }
 
     void assert_expr_core(expr * t) override;
     ast_manager& get_manager() const override;
@@ -66,11 +73,13 @@ public:
     void push_core() override;
     void pop_core(unsigned n) override;
     lbool check_sat_core2(unsigned num_assumptions, expr * const * assumptions) override;
+    lbool check_ddnnf_core2(unsigned num_assumptions, expr * const * assumptions) override;
 
     void collect_statistics(statistics & st) const override;
     void get_unsat_core(expr_ref_vector & r) override;
     void get_model_core(model_ref & m) override;
     proof * get_proof() override;
+    void get_ddnnf(expr_ref & d);
     std::string reason_unknown() const override;
     void set_reason_unknown(char const* msg) override;
     void get_labels(svector<symbol> & r) override {}
@@ -145,7 +154,9 @@ public:
 
 ast_manager& tactic2solver::get_manager() const { return m_assertions.get_manager(); }
 
-tactic2solver::tactic2solver(ast_manager & m, tactic * t, params_ref const & p, bool produce_proofs, bool produce_models, bool produce_unsat_cores, symbol const & logic):
+tactic2solver::tactic2solver(ast_manager & m, tactic * t, params_ref const & p,
+                             bool produce_proofs, bool produce_models, bool produce_unsat_cores, bool produce_ddnnf,
+                             symbol const & logic):
     solver_na2as(m),
     m_assertions(m),
     m_last_assertions(m),
@@ -156,6 +167,7 @@ tactic2solver::tactic2solver(ast_manager & m, tactic * t, params_ref const & p, 
     solver::updt_params(p);
     
     m_produce_models      = produce_models;
+    m_produce_ddnnf       = produce_ddnnf;
     m_produce_proofs      = produce_proofs;
     m_produce_unsat_cores = produce_unsat_cores;
 }
@@ -208,7 +220,9 @@ lbool tactic2solver::check_sat_core2(unsigned num_assumptions, expr * const * as
     m_tactic->cleanup();
     m_tactic->set_logic(m_logic);
     m_tactic->updt_params(get_params()); // parameters are allowed to overwrite logic.
-    goal_ref g = alloc(goal, m, m_produce_proofs, m_produce_models, m_produce_unsat_cores);
+    TRACE("smt_circuit_debug", tout << " called tactic2solver::check_sat_core2 " << "\n";);
+    TRACE("smt_circuit_debug", tout << " passed m_produce_ddnnf: " << m_produce_ddnnf << "\n";);
+    goal_ref g = alloc(goal, m, m_produce_proofs, m_produce_models, m_produce_unsat_cores, m_produce_ddnnf);
 
     for (expr* e : m_assertions) {
         g->assert_expr(e);
@@ -277,10 +291,93 @@ lbool tactic2solver::check_sat_core2(unsigned num_assumptions, expr * const * as
     return m_result->status();
 }
 
+lbool tactic2solver::check_ddnnf_core2(unsigned num_assumptions, expr * const * assumptions) {
+        TRACE("smt_circuit_debug", tout <<  "called tactic2solver::check_ddnnf_core2" << "\n";);
+        if (m_tactic.get() == nullptr)
+            return l_false;
+        m_last_assertions_valid = false;
+        ast_manager & m = m_assertions.m();
+        m_result = alloc(simple_check_sat_result, m);
+        m_tactic->cleanup();
+        m_tactic->set_logic(m_logic);
+        m_tactic->updt_params(get_params()); // parameters are allowed to overwrite logic.
+        goal_ref g = alloc(goal, m, m_produce_proofs, m_produce_models, m_produce_unsat_cores, m_produce_ddnnf);
+
+        for (expr* e : m_assertions) {
+            g->assert_expr(e);
+        }
+        for (unsigned i = 0; i < num_assumptions; i++) {
+            proof_ref pr(m.mk_asserted(assumptions[i]), m);
+            expr_dependency_ref ans(m.mk_leaf(assumptions[i]), m);
+            g->assert_expr(assumptions[i], pr, ans);
+        }
+
+        model_ref           md;
+        proof_ref           pr(m);
+        expr_dependency_ref core(m);
+        expr_ref            ddnnf(m);
+        std::string         reason_unknown = "unknown";
+        labels_vec labels;
+        TRACE("tactic", g->display(tout););
+        try {
+            switch (::check_ddnnf(*m_tactic, g, md, ddnnf, labels, pr, core, reason_unknown)) {
+                case l_true:
+                    m_result->set_status(l_true);
+                    break;
+                case l_false:
+                    m_result->set_status(l_false);
+                    break;
+                default:
+                    m_result->set_status(l_undef);
+                    if (!reason_unknown.empty())
+                        m_result->m_unknown = reason_unknown;
+                    if (num_assumptions == 0 && m_scopes.empty()) {
+                        m_last_assertions.reset();
+                        g->get_formulas(m_last_assertions);
+                        m_last_assertions_valid = true;
+                    }
+                    break;
+            }
+            CTRACE("tactic", md.get(), tout << *md.get() << "\n";);
+            TRACE("tactic",
+                  if (m_mc) m_mc->display(tout << "mc:\n");
+                          if (g->mc()) g->mc()->display(tout << "\ng:\n");
+                          if (md) tout << "\nmodel:\n" << *md.get() << "\n";
+            );
+            m_mc = g->mc();
+
+        }
+        catch (z3_error & ex) {
+            TRACE("tactic2solver", tout << "exception: " << ex.msg() << "\n";);
+            m_result->m_proof = pr;
+            throw ex;
+        }
+        catch (z3_exception & ex) {
+            TRACE("tactic2solver", tout << "exception: " << ex.msg() << "\n";);
+            m_result->set_status(l_undef);
+            m_result->m_unknown = ex.msg();
+            m_result->m_proof = pr;
+        }
+        m_tactic->collect_statistics(m_result->m_stats);
+        m_tactic->collect_statistics(m_stats);
+        m_result->m_model = md;
+        m_result->m_ddnnf = ddnnf;
+        m_result->m_proof = pr;
+        if (m_produce_unsat_cores) {
+            ptr_vector<expr> core_elems;
+            m.linearize(core, core_elems);
+            m_result->m_core.append(core_elems.size(), core_elems.data());
+        }
+        m_tactic->cleanup();
+        return m_result->status();
+    }
+
 
 solver* tactic2solver::translate(ast_manager& m, params_ref const& p) {
     tactic* t = m_tactic->translate(m);
-    tactic2solver* r = alloc(tactic2solver, m, t, p, m_produce_proofs, m_produce_models, m_produce_unsat_cores, m_logic);
+    tactic2solver* r = alloc(tactic2solver, m, t, p,
+                             m_produce_proofs, m_produce_models, m_produce_unsat_cores, m_produce_ddnnf,
+                             m_logic);
     r->m_result = nullptr;
     if (!m_scopes.empty()) {
         throw default_exception("translation of contexts is only supported at base level");
@@ -318,6 +415,11 @@ proof * tactic2solver::get_proof() {
         return nullptr;
 }
 
+void tactic2solver::get_ddnnf(expr_ref & d) {
+    if (m_result.get())
+        m_result->get_ddnnf(d);
+}
+
 std::string tactic2solver::reason_unknown() const {
     if (m_result.get())
         return m_result->reason_unknown();
@@ -347,8 +449,9 @@ solver * mk_tactic2solver(ast_manager & m,
                           bool produce_proofs,
                           bool produce_models,
                           bool produce_unsat_cores,
+                          bool produce_ddnnf,
                           symbol const & logic) {
-    return alloc(tactic2solver, m, t, p, produce_proofs, produce_models, produce_unsat_cores, logic);
+    return alloc(tactic2solver, m, t, p, produce_proofs, produce_models, produce_unsat_cores, produce_ddnnf, logic);
 }
 
 namespace {
@@ -358,8 +461,10 @@ public:
     tactic2solver_factory(tactic * t):m_tactic(t) {
     }
 
-    solver * operator()(ast_manager & m, params_ref const & p, bool proofs_enabled, bool models_enabled, bool unsat_core_enabled, symbol const & logic) override {
-        return mk_tactic2solver(m, m_tactic.get(), p, proofs_enabled, models_enabled, unsat_core_enabled, logic);
+    solver * operator()(ast_manager & m, params_ref const & p, bool proofs_enabled, bool models_enabled,
+            bool unsat_core_enabled, bool ddnnf_enabled, symbol const & logic) override {
+        return mk_tactic2solver(m, m_tactic.get(), p, proofs_enabled, models_enabled,
+                                unsat_core_enabled, ddnnf_enabled, logic);
     }
 };
 
@@ -369,9 +474,11 @@ public:
     tactic_factory2solver_factory(tactic_factory f):m_factory(f) {
     }
     
-    solver * operator()(ast_manager & m, params_ref const & p, bool proofs_enabled, bool models_enabled, bool unsat_core_enabled, symbol const & logic) override {
+    solver * operator()(ast_manager & m, params_ref const & p, bool proofs_enabled, bool models_enabled,
+            bool unsat_core_enabled, bool ddnnf_enabled, symbol const & logic) override {
         tactic * t = (*m_factory)(m, p);
-        return mk_tactic2solver(m, t, p, proofs_enabled, models_enabled, unsat_core_enabled, logic);
+        return mk_tactic2solver(m, t, p, proofs_enabled, models_enabled,
+                                unsat_core_enabled, ddnnf_enabled, logic);
     }
 };
 }

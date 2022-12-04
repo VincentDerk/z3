@@ -17,6 +17,7 @@ Revision History:
 
 --*/
 #include<thread>
+#include <iostream>
 #include "util/scoped_ctrl_c.h"
 #include "util/cancel_eh.h"
 #include "util/file_path.h"
@@ -141,10 +142,10 @@ extern "C" {
 
     static void init_solver_core(Z3_context c, Z3_solver _s) {
         Z3_solver_ref * s = to_solver(_s);
-        bool proofs_enabled = true, models_enabled = true, unsat_core_enabled = false;
+        bool proofs_enabled = true, models_enabled = true, unsat_core_enabled = false, ddnnf_enabled = false;
         params_ref p = s->m_params;
-        mk_c(c)->params().get_solver_params(p, proofs_enabled, models_enabled, unsat_core_enabled);
-        s->m_solver = (*(s->m_solver_factory))(mk_c(c)->m(), p, proofs_enabled, models_enabled, unsat_core_enabled, s->m_logic);
+        mk_c(c)->params().get_solver_params(p, proofs_enabled, models_enabled, unsat_core_enabled, ddnnf_enabled);
+        s->m_solver = (*(s->m_solver_factory))(mk_c(c)->m(), p, proofs_enabled, models_enabled, unsat_core_enabled, ddnnf_enabled, s->m_logic);
         
         param_descrs r;
         s->m_solver->collect_param_descrs(r);
@@ -388,9 +389,14 @@ extern "C" {
         }
         if (to_solver(s)->m_solver) {
             bool old_model = to_solver(s)->m_params.get_bool("model", true);
-            bool new_model = params.get_bool("model", true);
+            bool new_model = params.get_bool("model", old_model);
             if (old_model != new_model)
                 to_solver_ref(s)->set_produce_models(new_model);
+            bool old_ddnnf = to_solver(s)->m_params.get_bool("produce_ddnnf", false);
+            bool new_ddnnf = params.get_bool("produce_ddnnf", old_ddnnf);
+            TRACE("smt_circuit_debug", tout << "Z3_solver_set_params::old_ddnnf vs new_ddnnf: " << old_ddnnf << " vs " << new_ddnnf << "\n";);
+            if (old_ddnnf != new_ddnnf)
+                to_solver_ref(s)->set_produce_ddnnf(new_ddnnf);
             param_descrs& r = to_solver(s)->m_param_descrs;
             if(r.size () == 0) {
               to_solver_ref(s)->collect_param_descrs(r);
@@ -590,6 +596,7 @@ extern "C" {
         timeout              = sp.timeout() != UINT_MAX ? sp.timeout() : timeout;
         unsigned rlimit      = to_solver(s)->m_params.get_uint("rlimit", mk_c(c)->get_rlimit());
         bool     use_ctrl_c  = to_solver(s)->m_params.get_bool("ctrl_c", true);
+        bool   produce_ddnnf = to_solver(s)->m_params.get_bool("produce_ddnnf", false);   // TODO: test
         cancel_eh<reslimit> eh(mk_c(c)->m().limit());
         to_solver(s)->set_eh(&eh);
         api::context::set_interruptable si(*(mk_c(c)), eh);
@@ -599,8 +606,14 @@ extern "C" {
             scoped_timer timer(timeout, &eh);
             scoped_rlimit _rlimit(mk_c(c)->m().limit(), rlimit);
             try {
-                if (to_solver(s)->m_pp) to_solver(s)->m_pp->check(num_assumptions, _assumptions); 
-                result = to_solver_ref(s)->check_sat(num_assumptions, _assumptions);
+                if (to_solver(s)->m_pp) to_solver(s)->m_pp->check(num_assumptions, _assumptions);
+                if (produce_ddnnf) {
+                    to_solver_ref(s)->set_produce_ddnnf(true);
+                    // std::cout << "typeid(*m_solver): " << typeid(*to_solver_ref(s)).name() << std::endl;
+                    result = to_solver_ref(s)->check_ddnnf(num_assumptions, _assumptions);
+                } else {
+                    result = to_solver_ref(s)->check_sat(num_assumptions, _assumptions);
+                }
             }
             catch (z3_exception & ex) {
                 to_solver_ref(s)->set_reason_unknown(eh);
@@ -640,8 +653,78 @@ extern "C" {
         return _solver_check(c, s, num_assumptions, assumptions);
         Z3_CATCH_RETURN(Z3_L_UNDEF);
     }
-    
-    Z3_model Z3_API Z3_solver_get_model(Z3_context c, Z3_solver s) {
+
+//    Z3_ast Z3_API Z3_solver_generate_circuit(Z3_context c, Z3_solver s) {
+//        Z3_TRY;
+//        LOG_Z3_solver_check(c, s);  // TODO: change to LOG_Z3_solver_generate_circuit?
+//        RESET_ERROR_CODE();
+//        init_solver(c, s);
+//
+//        //        expr * args[2] = { to_expr(n1), to_expr(n2) };
+//        //        ast* a = mk_c(c)->m().mk_app(mk_c(c)->get_arith_fid(), k, 0, nullptr, 2, args);
+//
+//        solver_params sp(to_solver(s)->m_params);
+//        unsigned timeout     = mk_c(c)->get_timeout();
+//        timeout              = to_solver(s)->m_params.get_uint("timeout", timeout);
+//        timeout              = sp.timeout() != UINT_MAX ? sp.timeout() : timeout;
+//        unsigned rlimit      = to_solver(s)->m_params.get_uint("rlimit", mk_c(c)->get_rlimit());
+//        bool     use_ctrl_c  = to_solver(s)->m_params.get_bool("ctrl_c", true);
+//        cancel_eh<reslimit> eh(mk_c(c)->m().limit());
+//        to_solver(s)->set_eh(&eh);
+//        api::context::set_interruptable si(*(mk_c(c)), eh);
+//        lbool result = l_undef; //TODO: replace
+//        {
+//            scoped_ctrl_c ctrlc(eh, false, use_ctrl_c);
+//            scoped_timer timer(timeout, &eh);
+//            scoped_rlimit _rlimit(mk_c(c)->m().limit(), rlimit);
+//            try {
+////                if (to_solver(s)->m_pp)   //TODO: update
+////                    to_solver(s)->m_pp->check(num_assumptions, _assumptions);
+////                result = to_solver_ref(s)->check_sat(num_assumptions, _assumptions);
+//            } catch (z3_exception & ex) {
+//                to_solver_ref(s)->set_reason_unknown(eh);
+//                to_solver(s)->set_eh(nullptr);
+//                if (mk_c(c)->m().inc()) {
+//                    mk_c(c)->handle_exception(ex);
+//                }
+//                return nullptr;
+//            } catch (...) {
+//                to_solver_ref(s)->set_reason_unknown(eh);
+//                to_solver(s)->set_eh(nullptr);
+//                return nullptr;
+//            }
+//        }
+//        to_solver(s)->set_eh(nullptr);
+//        if (result == l_undef) {
+//            to_solver_ref(s)->set_reason_unknown(eh);
+//        }
+//        //return static_cast<Z3_lbool>(result);
+//
+//        //mk_c(c)->save_ast_trail(a); //TODO: uncomment
+//        //        check_sorts(c, a);    //TODO: needed? IS used in api_arith.cpp
+//        //RETURN_Z3(of_ast(a)); //TODO: uncomment
+//        RETURN_Z3(nullptr);
+//        Z3_CATCH_RETURN(nullptr);
+//    }
+
+Z3_ast Z3_API Z3_solver_get_ddnnf(Z3_context c, Z3_solver s) {
+    Z3_TRY;
+        LOG_Z3_solver_get_model(c, s);
+        RESET_ERROR_CODE();
+        init_solver(c, s);
+        expr_ref ddnnf(to_solver_ref(s)->get_manager());
+        to_solver_ref(s)->get_ddnnf(ddnnf);
+        if (!ddnnf) {
+            SET_ERROR_CODE(Z3_INVALID_USAGE, "there is no current d-DNNF formula");
+            RETURN_Z3(nullptr);
+        }
+        mk_c(c)->save_ast_trail(ddnnf);
+        check_sorts(c, ddnnf);    //TODO: needed? IS used in api_arith.cpp
+        RETURN_Z3(of_ast(ddnnf));
+    Z3_CATCH_RETURN(nullptr);
+}
+
+Z3_model Z3_API Z3_solver_get_model(Z3_context c, Z3_solver s) {
         Z3_TRY;
         LOG_Z3_solver_get_model(c, s);
         RESET_ERROR_CODE();
@@ -656,7 +739,7 @@ extern "C" {
             model_params mp(to_solver_ref(s)->get_params());
             if (mp.compact()) _m->compress();
         }
-        Z3_model_ref * m_ref = alloc(Z3_model_ref, *mk_c(c)); 
+        Z3_model_ref * m_ref = alloc(Z3_model_ref, *mk_c(c));
         m_ref->m_model = _m;
         mk_c(c)->save_object(m_ref);
         RETURN_Z3(of_model(m_ref));

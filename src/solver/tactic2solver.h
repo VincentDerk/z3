@@ -35,7 +35,8 @@ solver * mk_tactic2solver(ast_manager & m,
                           params_ref const & p = params_ref(), 
                           bool produce_proofs = false, 
                           bool produce_models = true, 
-                          bool produce_unsat_cores = false, 
+                          bool produce_unsat_cores = false,
+                          bool produce_ddnnf = false,
                           symbol const & logic = symbol::null);
 
 

@@ -316,7 +316,7 @@ ast_manager * ast_context_params::mk_ast_manager() {
         return m_manager;
     ast_manager * r = alloc(ast_manager,
                             m_proof ? PGM_ENABLED : PGM_DISABLED,
-                            m_trace ? m_trace_file_name.c_str() : nullptr);
+                            m_trace ? m_trace_file_name.c_str() : nullptr); //TODO: V: shouldn't these arguments swap?
     if (m_smtlib2_compliant)
         r->enable_int_real_coercions(false);
     if (m_debug_ref_count)
@@ -612,6 +612,12 @@ void cmd_context::set_produce_models(bool f) {
     m_params.m_model = f;
 }
 
+void cmd_context::set_produce_ddnnf(bool f) {
+    if (m_solver)
+        m_solver->set_produce_ddnnf(f);
+    m_params.m_ddnnf = f;
+}
+
 void cmd_context::set_produce_unsat_cores(bool f) {
     // can only be set before initialization
     SASSERT(!has_assertions());
@@ -628,6 +634,10 @@ void cmd_context::set_produce_proofs(bool f) {
 
 bool cmd_context::produce_models() const {
     return m_params.m_model;
+}
+
+bool cmd_context::produce_ddnnf() const {
+    return m_params.m_ddnnf;
 }
 
 bool cmd_context::produce_proofs() const {
@@ -1725,6 +1735,56 @@ void cmd_context::check_sat(unsigned num_assumptions, expr * const * assumptions
     }
 }
 
+void cmd_context::generate_circuit() {
+    if (m_ignore_check)
+        return;
+    IF_VERBOSE(100, verbose_stream() << "(started \"generate-ddnnf\")" << std::endl;);
+    init_manager();
+    TRACE("before_generate_circuit", dump_assertions(tout););
+    unsigned timeout = m_params.m_timeout;
+    unsigned rlimit  = m_params.rlimit();
+    scoped_watch sw(*this);
+    lbool r;
+
+    if (m_solver) {
+        m_check_sat_result = m_solver.get(); // solver itself stores the result.
+        m_solver->set_progress_callback(this);
+        cancel_eh<reslimit> eh(m().limit());
+        scoped_ctrl_c ctrlc(eh);
+        scoped_timer timer(timeout, &eh);
+        scoped_rlimit _rlimit(m().limit(), rlimit);
+        try {
+            r = m_solver->check_ddnnf(0, nullptr);    //TODO: replace?
+            if (r == l_undef && !m().inc()) {
+                m_solver->set_reason_unknown(eh);
+            }
+        } catch (z3_error & ex) {
+            throw ex;
+        } catch (z3_exception & ex) {
+            if (!m().inc()) {
+                m_solver->set_reason_unknown(eh);
+            } else {
+                m_solver->set_reason_unknown(ex.msg());
+            }
+            r = l_undef;
+        }
+        m_solver->set_status(r);
+    } else {
+        // There is no solver installed in the command context.
+        regular_stream() << "unknown" << std::endl;
+        return;
+    }
+    display_sat_result(r);
+    if (r == l_true) {
+        validate_model();
+    }
+    validate_check_sat_result(r);
+    model_ref md;
+    if (r == l_true && m_params.m_dump_models && is_model_available(md)) {
+        display_model(md);
+    }
+}
+
 void cmd_context::get_consequences(expr_ref_vector const& assumptions, expr_ref_vector const& vars, expr_ref_vector & conseq) {
     unsigned timeout = m_params.m_timeout;
     unsigned rlimit  = m_params.rlimit();
@@ -2143,10 +2203,10 @@ void cmd_context::display_detailed_analysis(std::ostream& out, model_evaluator& 
 }
 
 void cmd_context::mk_solver() {
-    bool proofs_enabled = m().proofs_enabled(), models_enabled = true, unsat_core_enabled = true;
+    bool proofs_enabled = m().proofs_enabled(), models_enabled = true, ddnnf_enabled = false, unsat_core_enabled = true;
     params_ref p;
-    m_params.get_solver_params(p, proofs_enabled, models_enabled, unsat_core_enabled);
-    m_solver = (*m_solver_factory)(m(), p, proofs_enabled, models_enabled, unsat_core_enabled, m_logic);
+    m_params.get_solver_params(p, proofs_enabled, models_enabled, unsat_core_enabled, ddnnf_enabled);
+    m_solver = (*m_solver_factory)(m(), p, proofs_enabled, models_enabled, unsat_core_enabled, ddnnf_enabled, m_logic);
 }
 
 

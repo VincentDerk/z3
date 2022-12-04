@@ -2069,13 +2069,19 @@ namespace smtfd {
         }
         void get_model_core(model_ref & mdl) override { 
             mdl = m_model;
-        } 
+        }
+
+        lbool check_ddnnf_core2(unsigned num_assumptions, expr* const* assumptions) override {
+            SASSERT(false);  //TODO: not supported solver
+            return l_undef;
+        }
 
         model_converter_ref get_model_converter() const override {             
             return m_fd_sat_solver->get_model_converter();
         }
         
         proof * get_proof() override { return nullptr; }
+        void get_ddnnf(expr_ref & e) override { SASSERT(false); } //TODO: not supported solver
         std::string reason_unknown() const override { return m_reason_unknown; }
         void set_reason_unknown(char const* msg) override { m_reason_unknown = msg; }
         void get_labels(svector<symbol> & r) override { }

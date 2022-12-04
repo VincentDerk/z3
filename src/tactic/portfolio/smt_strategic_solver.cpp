@@ -131,7 +131,8 @@ class smt_strategic_solver_factory : public solver_factory {
 public:
     smt_strategic_solver_factory(symbol const & logic):m_logic(logic) {}
 
-    solver * operator()(ast_manager & m, params_ref const & p, bool proofs_enabled, bool models_enabled, bool unsat_core_enabled, symbol const & logic) override {
+    solver * operator()(ast_manager & m, params_ref const & p, bool proofs_enabled, bool models_enabled,
+            bool unsat_core_enabled, bool ddnnf_enabled, symbol const & logic) override {
         symbol l;
         if (m_logic != symbol::null)
             l = m_logic;
@@ -159,7 +160,9 @@ public:
         if (!t) {
             t = mk_tactic_for_logic(m, p, l);
         }
-        return mk_combined_solver(mk_tactic2solver(m, t.get(), p, proofs_enabled, models_enabled, unsat_core_enabled, l),
+        return mk_combined_solver(mk_tactic2solver(m, t.get(), p, proofs_enabled,
+                                                   models_enabled, unsat_core_enabled,
+                                                   ddnnf_enabled, l),
                                   mk_solver_for_logic(m, p, l), 
                                   p);
     }

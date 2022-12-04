@@ -145,6 +145,13 @@ public:
         return m_solver->check_sat_core(num_assumptions, assumptions);
     }
 
+    lbool check_ddnnf_core2(unsigned num_assumptions, expr* const* assumptions) override {
+        //TODO: not tested solver
+        SASSERT(false);
+        flush_assertions();
+        return m_solver->check_ddnnf_core(num_assumptions, assumptions);
+    }
+
     void updt_params(params_ref const & p) override { solver::updt_params(p); m_solver->updt_params(p);  }
     void collect_param_descrs(param_descrs & r) override { m_solver->collect_param_descrs(r); }
     void set_produce_models(bool f) override { m_solver->set_produce_models(f); }
@@ -196,6 +203,7 @@ public:
         return mc;
     }
     proof * get_proof() override { return m_solver->get_proof(); }
+    void get_ddnnf(expr_ref & e) override { m_solver->get_ddnnf(e); }
     std::string reason_unknown() const override { return m_solver->reason_unknown(); }
     void set_reason_unknown(char const* msg) override { m_solver->set_reason_unknown(msg); }
     void get_labels(svector<symbol> & r) override { m_solver->get_labels(r); }

@@ -157,6 +157,11 @@ public:
         m_solver1->set_produce_models(f);
         m_solver2->set_produce_models(f);
     }
+
+    void set_produce_ddnnf(bool f) override {
+        m_solver1->set_produce_ddnnf(f);
+        m_solver2->set_produce_ddnnf(f);
+    }
     
     void assert_expr_core(expr * t) override {
         if (m_check_sat_executed)
@@ -251,6 +256,53 @@ public:
         m_use_solver1_results = true;
         return m_solver1->check_sat_core(num_assumptions, assumptions);
     }
+
+
+    lbool check_ddnnf_core(unsigned num_assumptions, expr * const * assumptions) override {
+        m_check_sat_executed  = true;
+        m_use_solver1_results = false;
+
+        if (get_num_assumptions() != 0 ||
+            num_assumptions > 0 ||  // assumptions were provided
+            m_ignore_solver1)  {
+            // must use incremental solver
+            switch_inc_mode();
+            return m_solver2->check_sat_core(num_assumptions, assumptions);
+        }
+
+        SASSERT(!m_inc_mode);
+//        if (m_inc_mode) {
+//            if (m_inc_timeout == UINT_MAX) {
+//                IF_VERBOSE(PS_VB_LVL, verbose_stream() << "(combined-solver \"using solver 2 (without a timeout)\")\n";);
+//                lbool r = m_solver2->check_sat_core(num_assumptions, assumptions);
+//                if (r != l_undef || !use_solver1_when_undef() || !get_manager().inc()) {
+//                    return r;
+//                }
+//            }
+//            else {
+//                IF_VERBOSE(PS_VB_LVL, verbose_stream() << "(combined-solver \"using solver 2 (with timeout)\")\n";);
+//                aux_timeout_eh eh(m_solver2.get());
+//                lbool r = l_undef;
+//                try {
+//                    scoped_timer timer(m_inc_timeout, &eh);
+//                    r = m_solver2->check_ddnnf_core(num_assumptions, assumptions);
+//                }
+//                catch (z3_exception&) {
+//                    if (!eh.m_canceled) {
+//                        throw;
+//                    }
+//                }
+//                if ((r != l_undef || !use_solver1_when_undef()) && !eh.m_canceled) {
+//                    return r;
+//                }
+//            }
+//            IF_VERBOSE(PS_VB_LVL, verbose_stream() << "(combined-solver \"solver 2 failed, trying solver1\")\n";);
+//        }
+
+        IF_VERBOSE(PS_VB_LVL, verbose_stream() << "(combined-solver \"using solver 1\")\n";);
+        m_use_solver1_results = true;
+        return m_solver1->check_ddnnf_core(num_assumptions, assumptions);
+    }
     
     void set_progress_callback(progress_callback * callback) override {
         m_solver1->set_progress_callback(callback);
@@ -323,6 +375,13 @@ public:
             return m_solver1->get_proof();
         else
             return m_solver2->get_proof();
+    }
+
+    void get_ddnnf(expr_ref & d) override {
+        if (m_use_solver1_results)
+            m_solver1->get_ddnnf(d);
+        else
+            m_solver2->get_ddnnf(d);
     }
 
     std::string reason_unknown() const override {
@@ -399,9 +458,10 @@ class combined_solver_factory : public solver_factory {
 public:
     combined_solver_factory(solver_factory * f1, solver_factory * f2):m_f1(f1), m_f2(f2) {}
 
-    solver * operator()(ast_manager & m, params_ref const & p, bool proofs_enabled, bool models_enabled, bool unsat_core_enabled, symbol const & logic) override {
-        return mk_combined_solver((*m_f1)(m, p, proofs_enabled, models_enabled, unsat_core_enabled, logic),
-                                  (*m_f2)(m, p, proofs_enabled, models_enabled, unsat_core_enabled, logic),
+    solver * operator()(ast_manager & m, params_ref const & p, bool proofs_enabled, bool models_enabled,
+            bool unsat_core_enabled, bool ddnnf_enabled, symbol const & logic) override {
+        return mk_combined_solver((*m_f1)(m, p, proofs_enabled, models_enabled, unsat_core_enabled, ddnnf_enabled, logic),
+                                  (*m_f2)(m, p, proofs_enabled, models_enabled, unsat_core_enabled, ddnnf_enabled, logic),
                                   p);
     }
 };

@@ -1674,6 +1674,7 @@ public:
 
     void collect_param_descrs(param_descrs & r) override {
         insert_produce_models(r);
+        insert_produce_ddnnf(r);
         insert_max_memory(r);
         r.insert("fm_real_only", CPK_BOOL, "(default: true) consider only real variables for fourier-motzkin elimination.");
         r.insert("fm_occ", CPK_BOOL, "(default: false) consider inequalities occurring in clauses for FM.");

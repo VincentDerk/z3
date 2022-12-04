@@ -35,6 +35,7 @@ Notes:
       - unsat-core (if the result is unsatisfiable)
       - reason-unknown (if the result is unknown, i.e., the solver failed to solve the problem)
       - label (if the result is satisfiable) this is legacy for Boogie
+      - ddnnf (if the result is satisfiable or unsatisfiable).
       
 */
 class check_sat_result {
@@ -59,6 +60,7 @@ public:
         get_model_core(m);
         if (m && mc0()) (*mc0())(m);
     }
+    virtual void get_ddnnf(expr_ref & d) = 0;
     virtual proof * get_proof() = 0;
     virtual std::string reason_unknown() const = 0;
     virtual void set_reason_unknown(char const* msg) = 0;
@@ -90,6 +92,7 @@ struct simple_check_sat_result : public check_sat_result {
     expr_ref_vector m_core;
     proof_ref       m_proof;
     std::string     m_unknown;
+    expr_ref        m_ddnnf;
     
     simple_check_sat_result(ast_manager & m);
     ~simple_check_sat_result() override;
@@ -97,6 +100,7 @@ struct simple_check_sat_result : public check_sat_result {
     void collect_statistics(statistics & st) const override;
     void get_unsat_core(expr_ref_vector & r) override;
     void get_model_core(model_ref & m) override;
+    void get_ddnnf(expr_ref & d) override;
     proof * get_proof() override;
     std::string reason_unknown() const override;
     void get_labels(svector<symbol> & r) override;

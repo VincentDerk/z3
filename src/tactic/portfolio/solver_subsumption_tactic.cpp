@@ -159,7 +159,7 @@ public:
             fmls.push_back(std::make_pair(i, expr_ref(g->form(i), m)));
         if (!m_solver) {
             scoped_ptr<solver_factory> f = mk_smt_strategic_solver_factory();
-            m_solver = (*f)(m, m_params, false, false, true, symbol::null);
+            m_solver = (*f)(m, m_params, false, false, true, false, symbol::null);
         }
         simplify(fmls, change);
         if (change.empty()) {

@@ -147,6 +147,7 @@ namespace api {
         scoped_ptr<cmd_context>& cmd() { return m_cmd; }
         bool produce_proofs() const { return m().proofs_enabled(); }
         bool produce_models() const { return m_params.m_model; }
+        bool produce_ddnnf() const { return m_params.m_ddnnf; }
         bool produce_unsat_cores() const { return m_params.m_unsat_core; }
         bool use_auto_config() const { return m_params.m_auto_config; }
         unsigned get_timeout() const { return m_params.m_timeout; }

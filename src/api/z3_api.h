@@ -7110,6 +7110,16 @@ extern "C" {
     Z3_model Z3_API Z3_solver_get_model(Z3_context c, Z3_solver s);
 
     /**
+        \brief Retrieve the SMT theory in d-DNNF, for the last #Z3_solver_check or #Z3_solver_check_assumptions
+
+        The error handler is invoked if a model is not available because
+        the commands above were not invoked for the given solver, or if the result was \c Z3_L_FALSE.
+
+        def_API('Z3_solver_get_ddnnf', AST, (_in(CONTEXT), _in(SOLVER)))
+    */
+    Z3_ast Z3_API Z3_solver_get_ddnnf(Z3_context c, Z3_solver s);
+
+    /**
        \brief Retrieve the proof for the last #Z3_solver_check or #Z3_solver_check_assumptions
 
        The error handler is invoked if proof generation is not enabled,

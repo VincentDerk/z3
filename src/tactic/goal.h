@@ -58,13 +58,15 @@ protected:
     expr_array            m_forms;
     expr_array            m_proofs;
     expr_dependency_array m_dependencies;
+    expr_ref              m_ddnnf;
     // attributes
-    unsigned              m_depth:26;          // depth of the goal in the goal tree.
-    unsigned              m_models_enabled:1;  // model generation is enabled.
-    unsigned              m_proofs_enabled:1;  // proof production is enabled. m_manager.proofs_enabled() must be true if m_proofs_enabled == true
-    unsigned              m_core_enabled:1;    // unsat core extraction is enabled.
-    unsigned              m_inconsistent:1;    // true if the goal is known to be inconsistent. 
-    unsigned              m_precision:2;       // PRECISE, UNDER, OVER.
+    unsigned              m_depth:25;               // depth of the goal in the goal tree.
+    unsigned              m_ddnnf_enabled:1;        // generate all models is enabled
+    unsigned              m_models_enabled:1;       // model generation is enabled.
+    unsigned              m_proofs_enabled:1;       // proof production is enabled. m_manager.proofs_enabled() must be true if m_proofs_enabled == true
+    unsigned              m_core_enabled:1;         // unsat core extraction is enabled.
+    unsigned              m_inconsistent:1;         // true if the goal is known to be inconsistent.
+    unsigned              m_precision:2;            // PRECISE, UNDER, OVER.
 
     void push_back(expr * f, proof * pr, expr_dependency * d);
     void quick_process(bool save_first, expr_ref & f, expr_dependency * d);
@@ -81,6 +83,7 @@ protected:
 public:
     goal(ast_manager & m, bool models_enabled = true, bool core_enabled = false);
     goal(ast_manager & m, bool proofs_enabled, bool models_enabled, bool core_enabled);
+    goal(ast_manager & m, bool proofs_enabled, bool models_enabled, bool core_enabled, bool ddnnf_enabled);
     goal(goal const & src);
     // Copy configuration: depth, models/proofs/cores flags, and precision from src.
     // The assertions are not copied
@@ -93,6 +96,7 @@ public:
     ast_manager & m() const { return m_manager; }
 
     unsigned depth() const { return m_depth; }
+    bool ddnnf_enabled() const { return m_ddnnf_enabled; }
     bool models_enabled() const { return m_models_enabled; }
     bool proofs_enabled() const { return m_proofs_enabled; }
     bool unsat_core_enabled() const { return m_core_enabled; }
@@ -158,6 +162,8 @@ public:
     void set(dependency_converter* d) { m_dc = d; }
     void set(model_converter* m) { m_mc = m; }
     void set(proof_converter* p) { m_pc = p; }
+    void set(expr_ref & ddnnf) { m_ddnnf = ddnnf; }
+    void get(expr_ref & ddnnf) { ddnnf = m_ddnnf; }
 
     bool is_cnf() const;
 

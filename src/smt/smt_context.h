@@ -238,11 +238,13 @@ namespace smt {
 
         // -----------------------------------
         //
-        // Circuit generation
+        // d-DNNF generation
         //
         // -----------------------------------
         smt_circuit                 m_smt_circuit;
         lit_assignments             decision_stack;
+        expr_ref                    m_ddnnf;
+        void                        mk_ddnnf();
         //TODO: cache
 
         // -----------------------------------
@@ -1153,6 +1155,8 @@ namespace smt {
 
         lbool search();
 
+        lbool search_all();
+
         void inc_limits();
 
         bool restart(lbool& status, unsigned curr_lvl);
@@ -1461,6 +1465,7 @@ namespace smt {
 #endif
         bool check_preamble(bool reset_cancel);
         lbool check_finalize(lbool r);
+        expr* check_all_finalize(expr* r);
 
         // -----------------------------------
         //
@@ -1561,6 +1566,8 @@ namespace smt {
 
         lbool setup_and_check(bool reset_cancel = true);
 
+        lbool setup_and_check_all(bool reset_cancel = true);
+
         void reduce_assertions();
 
         bool resource_limits_exceeded();
@@ -1606,6 +1613,8 @@ namespace smt {
         void get_model(model_ref & m);
 
         void set_model(model* m) { m_model = m; }
+
+        void get_ddnnf(expr_ref & e);
 
         bool update_model(bool refinalize);
 

@@ -42,7 +42,8 @@ void check_sat_result::set_reason_unknown(event_handler& eh) {
 
 simple_check_sat_result::simple_check_sat_result(ast_manager & m):
     m_core(m),
-    m_proof(m) {
+    m_proof(m),
+    m_ddnnf(m) {
     }
 
 simple_check_sat_result::~simple_check_sat_result() {
@@ -68,6 +69,10 @@ void simple_check_sat_result::get_model_core(model_ref & m) {
 
 proof * simple_check_sat_result::get_proof() { 
     return m_proof;
+}
+
+void simple_check_sat_result::get_ddnnf(expr_ref &d) {
+    d = m_ddnnf;
 }
 
 std::string simple_check_sat_result::reason_unknown() const { 

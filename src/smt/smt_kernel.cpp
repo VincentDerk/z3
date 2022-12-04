@@ -120,6 +120,10 @@ namespace smt {
         return m_imp->m_kernel.inconsistent();
     }
 
+    lbool kernel::setup_and_check_all() {
+        return m_imp->m_kernel.setup_and_check_all();
+    }
+
     lbool kernel::setup_and_check() {
         return m_imp->m_kernel.setup_and_check();
     }
@@ -148,6 +152,10 @@ namespace smt {
 
     void kernel::get_model(model_ref & m) {
         m_imp->m_kernel.get_model(m);
+    }
+
+    void kernel::get_ddnnf(expr_ref & e) {
+        m_imp->m_kernel.get_ddnnf(e);
     }
 
     proof * kernel::get_proof() {

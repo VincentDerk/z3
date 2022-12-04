@@ -7112,6 +7112,25 @@ class Solver(Z3PPObject):
         r = Z3_solver_check_assumptions(self.ctx.ref(), self.solver, num, _assumptions)
         return CheckSatResult(r)
 
+    def ddnnf(self):
+        """ TODO
+
+        >>> s = Solver()
+        >>> s.set('produce-ddnnf', True)
+        >>> x = Real('x')
+        >>> y = Real('y')
+        >>> s.add(Or(x < y, x > y))
+        >>> s.add(And(0 < x, x < 10))
+        >>> s.add(And(0 < y, y < 10))
+        >>> s.check()
+        >>> s.ddnnf()
+        TODO
+        """
+        try:
+            return ExprRef(Z3_solver_get_ddnnf(self.ctx.ref(), self.solver), self.ctx)
+        except Z3Exception:
+            raise Z3Exception("d-DNNFF is not available")
+
     def model(self):
         """Return a model for the last `check()`.
 

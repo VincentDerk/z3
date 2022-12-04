@@ -200,6 +200,12 @@ namespace {
             return m_context.check(num_assumptions, assumptions);
         }
 
+        lbool check_ddnnf_core2(unsigned num_assumptions, expr * const * assumptions) override {
+            TRACE("solver_na2as", tout << "smt_solver::check_ddnnf_core: " << num_assumptions << "\n";);
+            SASSERT(false); // TODO: call correct ddnnf method.
+            return m_context.setup_and_check_all();
+        }
+
         lbool check_sat_cc_core(expr_ref_vector const& cube, vector<expr_ref_vector> const& clauses) override {
             return m_context.check(cube, clauses);
         }
@@ -291,6 +297,10 @@ namespace {
 
         proof * get_proof() override {
             return m_context.get_proof();
+        }
+
+        void get_ddnnf(expr_ref & e) override {
+            m_context.get_ddnnf(e);
         }
 
         std::string reason_unknown() const override {
@@ -505,7 +515,8 @@ solver * mk_smt_solver(ast_manager & m, params_ref const & p, symbol const & log
 namespace {
 class smt_solver_factory : public solver_factory {
 public:
-    solver * operator()(ast_manager & m, params_ref const & p, bool proofs_enabled, bool models_enabled, bool unsat_core_enabled, symbol const & logic) override {
+    solver * operator()(ast_manager & m, params_ref const & p, bool proofs_enabled, bool models_enabled,
+            bool unsat_core_enabled, bool ddnnf_enabled, symbol const & logic) override {
         return mk_smt_solver(m, p, logic);
     }
 };

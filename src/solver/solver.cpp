@@ -329,6 +329,26 @@ lbool solver::check_sat(unsigned num_assumptions, expr * const * assumptions) {
     return r;
 }
 
+lbool solver::check_ddnnf(unsigned num_assumptions, expr * const * assumptions) {
+    TRACE("smt_circuit_debug", tout << "called solver::check_ddnnf using instance of "
+                                    << typeid(*this).name() << "\n";);
+    lbool r = l_undef;
+    scoped_solver_time _st(*this);
+    try {
+        r = check_ddnnf_core(num_assumptions, assumptions);
+    }
+    catch (...) {
+        if (!get_manager().limit().inc(0)) {
+            dump_state(num_assumptions, assumptions);
+        }
+        throw;
+    }
+    if (r == l_undef && !get_manager().inc()) {
+        dump_state(num_assumptions, assumptions);
+    }
+    return r;
+}
+
 void solver::dump_state(unsigned sz, expr* const* assumptions) {
     if ((symbol::null != m_cancel_backup_file) &&
         !m_cancel_backup_file.is_numerical() && 

@@ -164,6 +164,40 @@ public:
         return res;
     }
 
+    lbool check_ddnnf_core2(unsigned num_assumptions, expr * const * assumptions) override {
+        SASSERT(false); //TODO: Did not change / verify this implementation.
+        SASSERT(!m_pushed || get_scope_level() > 0);
+        m_proof.reset();
+        scoped_watch _t_(m_pool.m_check_watch);
+        m_pool.m_stats.m_num_checks++;
+
+        stopwatch sw;
+        sw.start();
+        internalize_assertions();
+        lbool res = m_base->check_ddnnf(num_assumptions, assumptions);
+        sw.stop();
+        switch (res) {
+            case l_true:
+                m_pool.m_check_sat_watch.add(sw);
+                m_pool.m_stats.m_num_sat_checks++;
+                break;
+            case l_undef:
+                m_pool.m_check_undef_watch.add(sw);
+                m_pool.m_stats.m_num_undef_checks++;
+                break;
+            default:
+                break;
+        }
+        set_status(res);
+
+        if (m_dump_benchmarks && sw.get_seconds() >= m_dump_threshold) {
+            expr_ref_vector cube(m, num_assumptions, assumptions);
+            vector<expr_ref_vector> clauses;
+            dump_benchmark(cube, clauses, res, sw.get_seconds());
+        }
+        return res;
+    }
+
     lbool check_sat_cc_core(expr_ref_vector const & cube,
                             vector<expr_ref_vector> const & clauses) override {
         SASSERT(!m_pushed || get_scope_level() > 0);
@@ -250,6 +284,8 @@ public:
     }
 
     void get_model_core(model_ref & _m) override { m_base->get_model_core(_m); }
+
+    void get_ddnnf(expr_ref & d) override { m_base->get_ddnnf(d); }
 
     expr * get_assumption(unsigned idx) const override {
         return solver_na2as::get_assumption(idx + is_virtual());

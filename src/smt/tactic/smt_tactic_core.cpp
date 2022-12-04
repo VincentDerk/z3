@@ -16,6 +16,7 @@ Author:
 Notes:
 
 --*/
+#include <iostream>
 #include "util/debug.h"
 #include "ast/rewriter/rewriter_types.h"
 #include "ast/ast_util.h"
@@ -203,10 +204,15 @@ public:
 
             lbool r;
             try {
-                if (assumptions.empty() && !m_user_ctx)
+                TRACE("smt_circuit_debug", tout << "called smt_tactic_core::() "
+                                                   "with in->ddnnf_enabled(): " << in->ddnnf_enabled() << "\n";);
+                if (assumptions.empty() && !m_user_ctx && in->ddnnf_enabled()) {
+                    r = m_ctx->setup_and_check_all();
+                } else if (assumptions.empty() && !m_user_ctx && !in->ddnnf_enabled()) {
                     r = m_ctx->setup_and_check();
-                else
+                } else {
                     r = m_ctx->check(assumptions.size(), assumptions.data());
+                }
             }
             catch(...) {
                 TRACE("smt_tactic", tout << "exception\n";);
@@ -237,6 +243,13 @@ public:
                     mc = concat(fmc.get(), mc.get());
                     in->add(mc.get());
                 }
+
+                // pass ddnnf
+                if (in->ddnnf_enabled()) {
+                    expr_ref circuit(m);
+                    m_ctx->get_ddnnf(circuit);
+                    in->set(circuit);
+                }
                 if (m_ctx->canceled()) 
                     throw tactic_exception(Z3_CANCELED_MSG);                
                 return;
@@ -264,6 +277,12 @@ public:
                 in->assert_expr(m.mk_false(), pr, lcore);
                 
                 result.push_back(in.get());
+
+                // pass ddnnf
+                if (in->ddnnf_enabled()) {
+                    expr_ref circuit(m.mk_false(), m);
+                    in->set(circuit);
+                }
                 return;
             }
             case l_undef:
