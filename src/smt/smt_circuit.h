@@ -2,16 +2,20 @@
 // Created by vincent on 10/3/22.
 //
 
-#ifndef Z3_SMT_CIRCUIT_H
-#define Z3_SMT_CIRCUIT_H
+#pragma once
 
-#include "vector"
+#include "util/vector.h"
 #include "smt/smt_literal.h"
+//include "smt_context.h"
+
+namespace smt {
+    class context;
+}
 
 using circuit_ref = size_t;
 const circuit_ref null_circuit_ref = 0;
 
-using circuit_node_type = enum {
+enum circuit_node_type {
     FALSE_NODE = 0,
     TRUE_NODE = 1,
     DECISION_NODE,                  // OR with literal
@@ -26,12 +30,12 @@ struct circuit_node {
     circuit_node_type node_type{FALSE_NODE};
 
     // Whether this node is a decision of which the 2nd child is unexplored.
-    auto isIncompleteDecision() -> bool { return node_type == DECISION_NODE && children[1] == null_circuit_ref; };
+    auto isIncompleteDecision() const -> bool { return node_type == DECISION_NODE && children[1] == null_circuit_ref; };
 
     // Whether this node is a decision with both children explored.
-    auto isCompleteDecision() -> bool { return node_type == DECISION_NODE && children[1] != null_circuit_ref; };
+    auto isCompleteDecision() const -> bool { return node_type == DECISION_NODE && children[1] != null_circuit_ref; };
 
-    std::ostream & operator<<(std::ostream & s) {
+    std::ostream & operator<<(std::ostream & s) const {
         s << "(type=" << node_type << ",lit=" << lit << ",children=" << children[0] << "," << children[1] << ")";
         return s;
     }
@@ -113,7 +117,20 @@ public:
     /**
      * Print the circuit to stdout.
      */
-    void print_circuit();
+    void print_circuit() const;
+
+    /**
+     * Transform the current circuit into an SMT expression.
+     * @param m ast_manager used to construct and / or / false / true expressions.
+     * @param literal2expr function taking a literal and returning the associated expression.
+     * @return The current circuit as an expression.
+     */
+    auto as_expression(ast_manager& m, const smt::context& c) const -> expr_ref;
+
+    /**
+     * Finalize the construction of this circuit.
+     */
+    void finalize();
 
 private:
 
@@ -125,5 +142,3 @@ private:
      */
     bool _backtrack(circuit_ref start_index, bool flag_prune);
 };
-
-#endif //Z3_SMT_CIRCUIT_H

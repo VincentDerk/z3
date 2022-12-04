@@ -3,6 +3,7 @@
 //
 
 #include "smt_circuit.h"
+#include "smt_context.h"
 #include <cassert>
 #include <iostream>
 
@@ -15,9 +16,9 @@ auto smt_circuit::decide(smt::literal l) -> circuit_ref {
     circuit_ref curr_index = nodes.size();
     circuit_ref next_index = curr_index + 1;
     nodes.push_back({{next_index, null_circuit_ref}, l, DECISION_NODE });
-    std::cout << "Added (decide) " << l << "(" << l.var() << ")" << std::endl;
+    TRACE("smt_circuit", tout << "Added (decide) " << l << "\n";);
     return curr_index;
-};
+}
 
 auto smt_circuit::propagate(smt::literal l) -> circuit_ref {
     if (l.var() == prev_var) {
@@ -30,15 +31,15 @@ auto smt_circuit::propagate(smt::literal l) -> circuit_ref {
     circuit_ref curr_index = nodes.size();
     circuit_ref next_index = curr_index + 1;
     nodes.push_back({{next_index, null_circuit_ref}, l, PROPAGATION_NODE });
-    std::cout << "Added (prop) " << l << std::endl;
+    TRACE("smt_circuit", tout << "Added (prop) " << l << "\n";);
     return curr_index;
-};
+}
 
 auto smt_circuit::next_model() -> bool {
     assert(!nodes.empty());
     //1. add TRUE NODE to complete current branch.
     nodes.push_back({{null_circuit_ref, null_circuit_ref}, sat::null_literal, TRUE_NODE});
-    std::cout << "Added TRUE node" << std::endl;
+    TRACE("smt_circuit", tout <<  "Added TRUE node" << "\n";);
     //2. find previously incomplete decision node (maybe keep track using an index?)
     size_t index; //TODO: Optimization: store found index and next time only search from there on? (update this index when adding new decision node)
     for(index = nodes.size()-2; index > 0; index--) {
@@ -54,9 +55,9 @@ auto smt_circuit::next_model() -> bool {
     dec_node.children[1] = nodes.size();
     // Update prev_var
     prev_var = dec_node.lit.var();
-    std::cout << "Set ~l branch from " << dec_node.lit << std::endl;
+    TRACE("smt_circuit", tout << "Set ~l branch from " << dec_node.lit << "\n";);
     return true;
-};
+}
 
 auto smt_circuit::_backtrack(circuit_ref start_index, bool flag_prune) -> bool {
     circuit_ref node_index = start_index;
@@ -101,7 +102,7 @@ auto smt_circuit::_backtrack(circuit_ref start_index, bool flag_prune) -> bool {
     }
     // no decision left to backtrack to
     return false;
-};
+}
 
 void smt_circuit::backjump(vector<sat::literal, false>::reverse_iterator unset_literals, size_t num_lits) {
     bool flag_prune = true;
@@ -141,14 +142,14 @@ void smt_circuit::backjump(vector<sat::literal, false>::reverse_iterator unset_l
     //          any decision l appearing in another subcircuit must appear earlier (smaller vector index) than this.
     // elseif node.literal != next_lit
     //      skip this node (assert flag_prune = false)
-    std::cout << "backjmping: " << num_lits << " variables." << std::endl;
+    TRACE("smt_circuit", tout <<  "backjumping: " << num_lits << " variables." << "\n";);
     assert(num_lits > 0);
     circuit_ref node_index = nodes.size() - 1;               // pointer upwards traversing the circuit
     sat::bool_var next_var = (*unset_literals).var();   // next var to unset
-    std::cout << "node lits before backjump:";
-    for (auto node : nodes)
-        std::cout << node.lit << ",";
-    std::cout << std::endl << nodes.back().lit.var() << " and " << next_var << std::endl;
+//    std::cout << "node lits before backjump:";
+//    for (auto node : nodes)
+//        std::cout << node.lit << ",";
+//    std::cout << std::endl << nodes.back().lit.var() << " and " << next_var << std::endl;
     assert(nodes.back().lit.var() == next_var);
     // -- upwards traverse circuit till all unset_literals have been processed --
     while(num_lits > 0) {
@@ -220,11 +221,11 @@ void smt_circuit::backjump(vector<sat::literal, false>::reverse_iterator unset_l
             }
         }
     }
-    std::cout << "node lits after backjump:";
-    for (auto node : nodes)
-        std::cout << node.lit << ",";
-    std::cout << std::endl;
-};
+//    std::cout << "node lits after backjump:";
+//    for (auto node : nodes)
+//        std::cout << node.lit << ",";
+//    std::cout << std::endl;
+}
 
 
 
@@ -266,14 +267,13 @@ void smt_circuit::backjump(sat::literal last_lit, size_t num_lits) {
     //          any decision l appearing in another subcircuit must appear earlier (smaller vector index) than this.
     // elseif !node.is_parent_node_of(previous_node)
     //      skip this node (assert flag_prune = false)
-    std::cout << "backjmping: " << num_lits << " variables." << std::endl;
+    TRACE("smt_circuit", tout << "backjumping: " << num_lits << " variables." << "\n";);
     assert(num_lits > 0);
 
-    //TODO: remove after debugging
-    std::cout << "node lits before backjump:";
-    for (auto node : nodes)
-        std::cout << node.lit << ",";
-    std::cout << std::endl << nodes.back().lit.var() << " and " << last_lit << std::endl;
+//    std::cout << "node lits before backjump:";
+//    for (auto node : nodes)
+//        std::cout << node.lit << ",";
+//    std::cout << std::endl << nodes.back().lit.var() << " and " << last_lit << std::endl;
 
     assert(nodes.back().lit.var() == last_lit.var());
     // -- upwards traverse circuit till all necessary literals (cf. num_lits) have been processed --
@@ -355,22 +355,85 @@ void smt_circuit::backjump(sat::literal last_lit, size_t num_lits) {
         }
     }
 
-    //TODO: debug, remove after
-    std::cout << "node lits after backjump:";
-    for (auto node : nodes)
-        std::cout << node.lit << ",";
-    std::cout << std::endl;
-};
+//    std::cout << "node lits after backjump:";
+//    for (auto node : nodes)
+//        std::cout << node.lit << ",";
+//    std::cout << std::endl;
+}
 
 
-void smt_circuit::print_circuit() {
+void smt_circuit::print_circuit() const {
     size_t node_index;
-    circuit_node node;
     for(node_index = 0; node_index < nodes.size(); node_index++) {
-        node = nodes[node_index];
+        const circuit_node& node = nodes[node_index];
         std::cout << node_index << ": (lit=" << node.lit << "";
         //display_literal_smt2(std::cout, node.lit);
         std::cout << ",\t children=" << node.children[0] << "," << node.children[1];
         std::cout << ",\t type=" << node.node_type << ")\n";
     }
+}
+
+auto smt_circuit::as_expression(ast_manager& m, const smt::context& c) const -> expr_ref {
+    //auto smt_circuit::as_expression(ast_manager& m, expr_ref (*literal2expr)(smt::literal)) const -> expr* {
+    if (nodes.empty()) {
+        return expr_ref(m.mk_false(), m);
+    }
+
+    if (nodes[0].node_type == TRUE_NODE) {
+        assert(nodes.size() == 1);
+        return expr_ref(m.mk_true(), m);
+    }
+
+    // last node must be a true node.
+    // alternatively, we can increase size of results to nodes.size() + 1
+    // and store a mk_true() expression at results[nodes.size()]
+    assert(nodes.back().node_type == TRUE_NODE);
+    size_t const node_count = nodes.size();
+    size_t node_index;
+    expr* results[nodes.size()];
+    for (size_t nb_processed_nodes = 0; nb_processed_nodes < node_count; nb_processed_nodes++) {
+        node_index = node_count - nb_processed_nodes - 1;  // backwards, from last index to 0.
+        const circuit_node& node = nodes[node_index];
+        switch(node.node_type) {
+            case TRUE_NODE: {
+                results[node_index] = m.mk_true();
+                break;
+            }
+            case PROPAGATION_NODE:
+            case PROPAGATION_DUE_CONFLICT_NODE: {
+                assert(node.children[0] < nodes.size());
+                expr *lit = c.literal2expr(node.lit);
+                expr *branch = results[node.children[0]];
+                results[node_index] = m.mk_and(lit, branch);
+                break;
+            }
+            case DECISION_NODE: {
+                assert(node.isCompleteDecision());
+                assert(node.children[0] < nodes.size());
+                assert(node.children[1] < nodes.size());
+                //left branch
+                expr *left_lit = c.literal2expr(node.lit);
+                expr *left_child = results[node.children[0]];
+                expr *left_branch = m.mk_and(left_lit, left_child);
+                // right branch
+                expr *right_lit = c.literal2expr(~node.lit);
+                expr *right_child = results[node.children[1]];
+                expr *right_branch = m.mk_and(right_lit, right_child);
+                // combined
+                results[node_index] = m.mk_or(left_branch, right_branch);
+                break;
+            }
+            default:{}
+        }
+    }
+    return expr_ref(results[0], m); // root
+}
+
+void smt_circuit::finalize() {
+    // Ensure last node is a true node.
+    // So any previous node can point to this one.
+    assert(!nodes.empty());
+    bool last_node_is_true = nodes.back().node_type == TRUE_NODE;
+    if(!last_node_is_true)
+        nodes.push_back({{null_circuit_ref, null_circuit_ref}, sat::null_literal, TRUE_NODE});
 }
