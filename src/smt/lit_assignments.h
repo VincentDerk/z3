@@ -2,11 +2,10 @@
 // Created by vincent on 10/11/22.
 //
 
-#ifndef Z3_LIT_ASSIGNMENTS_H
-#define Z3_LIT_ASSIGNMENTS_H
+#pragma once
 
 #include <cassert>
-#include "vector"
+#include "util/vector.h"
 #include "smt/smt_literal.h"
 #include "smt/smt_types.h"
 
@@ -98,6 +97,3 @@ public:
     };
 
 };
-
-
-#endif //Z3_LIT_ASSIGNMENTS_H
