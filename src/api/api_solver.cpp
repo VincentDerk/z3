@@ -596,7 +596,7 @@ extern "C" {
         timeout              = sp.timeout() != UINT_MAX ? sp.timeout() : timeout;
         unsigned rlimit      = to_solver(s)->m_params.get_uint("rlimit", mk_c(c)->get_rlimit());
         bool     use_ctrl_c  = to_solver(s)->m_params.get_bool("ctrl_c", true);
-        bool   produce_ddnnf = to_solver(s)->m_params.get_bool("produce_ddnnf", false);   // TODO: test
+        bool   produce_ddnnf = to_solver(s)->m_params.get_bool("produce_ddnnf", false);
         cancel_eh<reslimit> eh(mk_c(c)->m().limit());
         to_solver(s)->set_eh(&eh);
         api::context::set_interruptable si(*(mk_c(c)), eh);
@@ -609,7 +609,7 @@ extern "C" {
                 if (to_solver(s)->m_pp) to_solver(s)->m_pp->check(num_assumptions, _assumptions);
                 if (produce_ddnnf) {
                     to_solver_ref(s)->set_produce_ddnnf(true);
-                    // std::cout << "typeid(*m_solver): " << typeid(*to_solver_ref(s)).name() << std::endl;
+//                    std::cout << "typeid(*m_solver): " << typeid(*to_solver_ref(s)).name() << std::endl;
                     result = to_solver_ref(s)->check_ddnnf(num_assumptions, _assumptions);
                 } else {
                     result = to_solver_ref(s)->check_sat(num_assumptions, _assumptions);
