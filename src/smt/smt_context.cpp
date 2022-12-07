@@ -3738,7 +3738,9 @@ namespace smt {
         //expr_ref (context::*fp)(smt::literal) const;
         //fp = &context::literal2expr;
         // create d-DNNF and store in m_ddnnf
+//        std::cout << "started mk_ddnnf()" << std::endl;
         mk_ddnnf();
+//        std::cout << "finished mk_ddnnf()" << std::endl;
 
         // clean up
         end_search();
@@ -3961,11 +3963,9 @@ namespace smt {
         }
     }
 
-    //TODO: Change name of this back to bounded_search_all, and the above method regular
     lbool context::bounded_search_all() {
         unsigned counter = 0;
         lbool found_model = l_false;
-
         TRACE("bounded_search_all", tout << "starting bounded search...\n";);
 
         while (true) {
@@ -4055,27 +4055,42 @@ namespace smt {
      * @return False when there is no incomplete decision remaining. This indicates the search procedure is finished.
      */
     bool context::start_next_model() {
+//        std::cout << "start_next_model:: m_assigned_literals.size() vs decision_stack.size() " << m_assigned_literals.size() << " vs " << decision_stack.size() << std::endl;
+//        std::cout << "decision_stack: ";
+//        for (auto l : decision_stack.assignments) {
+//            std::cout << "(" << l.lit << ":" << l.complete << "),";
+//        }
+//        std::cout << std::endl;
         SASSERT(m_assigned_literals.size() == decision_stack.size());
         // decision_stack: flip last incomplete decision
         size_t old_size = decision_stack.size();
         bool decision_left = decision_stack.flip_last_decision();
+//        std::cout << "decision_stack.flip_last_decision() finished. decision_left: " << decision_left << std::endl;
         if (!decision_left) {
             m_smt_circuit.finalize();
             return false; // no incomplete decision remained. we found every model.
         }
         size_t new_size = decision_stack.size();
         size_t nb_removed_lits = old_size - new_size;
+//        std::cout << "old_size: " << old_size << " and new_size: " << new_size << std::endl;
 
         // m_smt_circuit: update
         bool next_model_possible = m_smt_circuit.next_model();
+//        std::cout << "finished next_model_possible:" << next_model_possible << std::endl;
         SASSERT(next_model_possible); //Otherwise decision_stack and m_smt_circuit disagree. Would indicate bug
 
         // undo necessary scopes
-        pop_scope(nb_removed_lits);
+//        std::cout << "start pop_scope(" << nb_removed_lits << ")" << std::endl;
+        assert(nb_removed_lits > 0);
+        if (nb_removed_lits > 0) {
+            pop_scope(nb_removed_lits);
+//            std::cout << "finished pop_scope" << std::endl;
+        }
 
         // re-add negated literal
         smt::literal lit = decision_stack.assignments.back().lit;
         push_scope(); //TODO: necessary? See resolve_cnflict()
+//        std::cout << "finished push scope" << std::endl;
         assign(lit, b_justification::mk_axiom(), true);
 
         // add negated literal
@@ -4094,6 +4109,11 @@ namespace smt {
 //            std::cout << "," << s.lit;
 //        }
 //        std::cout << std::endl;
+
+//        std::cout << "start_next_model:: m_assigned_literals.size " << m_assigned_literals.size() << std::endl;
+//        std::cout << "start_next_model:: decision_stack.size " << decision_stack.size() << std::endl;
+//        std::cout << "start_next_model:: m_assigned_literals.back() " << m_assigned_literals.back() << std::endl;
+//        std::cout << "start_next_model:: decision_stack.assignments.back().lit " << decision_stack.assignments.back().lit << std::endl;
         SASSERT(m_assigned_literals.size() == decision_stack.size());
         SASSERT(m_assigned_literals.back() == decision_stack.assignments.back().lit);
 
