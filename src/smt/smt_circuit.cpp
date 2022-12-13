@@ -418,12 +418,15 @@ auto smt_circuit::as_expression(ast_manager& m, const smt::context& c) const -> 
 }
 
 void smt_circuit::finalize() {
-    // Ensure last node is a true node.
-    // So any previous node can point to this one.
+    // Close the final model.
+    // A True node denotes the closing a model.
+    // True nodes are added when calling next_model()
+    // To close the final model, it is important
+    // this method adds a TRUE node.
+    // REMARK: It could be that a circuit has 2 ending
+    // TRUE nodes. e.g. when smoothing over a variable.
     assert(!nodes.empty());
-    bool last_node_is_true = nodes.back().node_type == TRUE_NODE;
-    if(!last_node_is_true)
-        nodes.push_back({{null_circuit_ref, null_circuit_ref}, sat::null_literal, TRUE_NODE});
+    nodes.push_back({{null_circuit_ref, null_circuit_ref}, sat::null_literal, TRUE_NODE});
 }
 
 auto smt_circuit::display(std::ostream & out) const -> std::ostream& {
