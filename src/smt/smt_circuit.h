@@ -115,11 +115,6 @@ public:
     void backjump(sat::literal last_lit, size_t num_lits);
 
     /**
-     * Print the circuit to stdout.
-     */
-    void print_circuit() const;
-
-    /**
      * Transform the current circuit into an SMT expression.
      * @param m ast_manager used to construct and / or / false / true expressions.
      * @param literal2expr function taking a literal and returning the associated expression.
@@ -131,6 +126,11 @@ public:
      * Finalize the construction of this circuit.
      */
     void finalize();
+
+    /**
+     * Display the circuit
+     */
+    auto display(std::ostream & out) const -> std::ostream&;
 
 private:
 

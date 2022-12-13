@@ -361,18 +361,6 @@ void smt_circuit::backjump(sat::literal last_lit, size_t num_lits) {
 //    std::cout << std::endl;
 }
 
-
-void smt_circuit::print_circuit() const {
-    size_t node_index;
-    for(node_index = 0; node_index < nodes.size(); node_index++) {
-        const circuit_node& node = nodes[node_index];
-        std::cout << node_index << ": (lit=" << node.lit << "";
-        //display_literal_smt2(std::cout, node.lit);
-        std::cout << ",\t children=" << node.children[0] << "," << node.children[1];
-        std::cout << ",\t type=" << node.node_type << ")\n";
-    }
-}
-
 auto smt_circuit::as_expression(ast_manager& m, const smt::context& c) const -> expr_ref {
     //auto smt_circuit::as_expression(ast_manager& m, expr_ref (*literal2expr)(smt::literal)) const -> expr* {
     if (nodes.empty()) {
@@ -387,7 +375,7 @@ auto smt_circuit::as_expression(ast_manager& m, const smt::context& c) const -> 
     // last node must be a true node.
     // alternatively, we can increase size of results to nodes.size() + 1
     // and store a mk_true() expression at results[nodes.size()]
-    assert(nodes.back().node_type == TRUE_NODE);
+    SASSERT(nodes.back().node_type == TRUE_NODE);
     size_t const node_count = nodes.size();
     size_t node_index;
     expr* results[nodes.size()];
@@ -401,16 +389,16 @@ auto smt_circuit::as_expression(ast_manager& m, const smt::context& c) const -> 
             }
             case PROPAGATION_NODE:
             case PROPAGATION_DUE_CONFLICT_NODE: {
-                assert(node.children[0] < nodes.size());
+                SASSERT(node.children[0] < nodes.size());
                 expr *lit = c.literal2expr(node.lit);
                 expr *branch = results[node.children[0]];
                 results[node_index] = m.mk_and(lit, branch);
                 break;
             }
             case DECISION_NODE: {
-                assert(node.isCompleteDecision());
-                assert(node.children[0] < nodes.size());
-                assert(node.children[1] < nodes.size());
+                SASSERT(node.isCompleteDecision());
+                SASSERT(node.children[0] < nodes.size());
+                SASSERT(node.children[1] < nodes.size());
                 //left branch
                 expr *left_lit = c.literal2expr(node.lit);
                 expr *left_child = results[node.children[0]];
@@ -436,4 +424,15 @@ void smt_circuit::finalize() {
     bool last_node_is_true = nodes.back().node_type == TRUE_NODE;
     if(!last_node_is_true)
         nodes.push_back({{null_circuit_ref, null_circuit_ref}, sat::null_literal, TRUE_NODE});
+}
+
+auto smt_circuit::display(std::ostream & out) const -> std::ostream& {
+    size_t node_index;
+    for(node_index = 0; node_index < nodes.size(); node_index++) {
+        const circuit_node& node = nodes[node_index];
+        out << node_index << ": (lit=" << node.lit << "";
+        out << ",\t children=" << node.children[0] << "," << node.children[1];
+        out << ",\t type=" << node.node_type << ")\n";
+    }
+    return out;
 }
