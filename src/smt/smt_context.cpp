@@ -276,8 +276,7 @@ namespace smt {
      */
     void context::assign_core(literal l, b_justification j, bool decision) {
         IF_VERBOSE(900, verbose_stream() << "(smt.circuit): Assigned " << l << " "; display_literal_smt2(verbose_stream(), l) << " to true.\n";);
-        TRACE("smt_circuit", tout << "Assigned " << l << " ";);
-        TRACE("smt_circuit", display_literal_smt2(tout, l) << " = " << l << "\n";);
+        TRACE("smt_circuit", tout << "Assigned " << l << " to true; "; display_literal_smt2(tout, l) << "\n";);
         if (decision) {
             m_smt_circuit.decide(l);
             decision_stack.decide(l);
@@ -1910,6 +1909,7 @@ namespace smt {
             m.trace_stream() << "[push] " << m_scope_lvl << "\n";
 
         m_scope_lvl++;
+        TRACE("smt_circuit_debug", tout << "Pushed scope " << m_scope_lvl << "\n";);
         m_region.push_scope();
         m_scopes.push_back(scope());
         scope & s = m_scopes.back();
@@ -4032,7 +4032,7 @@ namespace smt {
 //                            display_literal_smt2(verbose_stream(), lit) << ";\n";
 //                        }
 //                        verbose_stream() << ")\n";
-                        // m_smt_circuit.print_circuit();  // -- d-DNNF DEBUG INFO --
+                        TRACE("smt_circuit", m_smt_circuit.display(tout););
                         // start search for the next model (if possible)
                         if(start_next_model())
                             break;
@@ -4062,35 +4062,27 @@ namespace smt {
 //        }
 //        std::cout << std::endl;
         SASSERT(m_assigned_literals.size() == decision_stack.size());
-        // decision_stack: flip last incomplete decision
-        size_t old_size = decision_stack.size();
         bool decision_left = decision_stack.flip_last_decision();
 //        std::cout << "decision_stack.flip_last_decision() finished. decision_left: " << decision_left << std::endl;
         if (!decision_left) {
             m_smt_circuit.finalize();
             return false; // no incomplete decision remained. we found every model.
         }
-        size_t new_size = decision_stack.size();
-        size_t nb_removed_lits = old_size - new_size;
-//        std::cout << "old_size: " << old_size << " and new_size: " << new_size << std::endl;
 
         // m_smt_circuit: update
         bool next_model_possible = m_smt_circuit.next_model();
 //        std::cout << "finished next_model_possible:" << next_model_possible << std::endl;
         SASSERT(next_model_possible); //Otherwise decision_stack and m_smt_circuit disagree. Would indicate bug
 
-        // undo necessary scopes
-//        std::cout << "start pop_scope(" << nb_removed_lits << ")" << std::endl;
-        assert(nb_removed_lits > 0);
-        if (nb_removed_lits > 0) {
-            pop_scope(nb_removed_lits);
-//            std::cout << "finished pop_scope" << std::endl;
-        }
-
+        // scope.push() only happens right before every decision.
+        // Literals that are assigned due to propagation do not cause a new scope,
+        // and are instead part of the same scope that was started by a decision.
+        // Hence, to undo the last decision we pop to the last scope (pop_scope)
+        // and then add the negated decision (to the new current scope).
+        // This way, changing decision is always equivalent to popping 1 scope.
+        pop_scope(1);
         // re-add negated literal
         smt::literal lit = decision_stack.assignments.back().lit;
-        push_scope(); //TODO: necessary? See resolve_cnflict()
-//        std::cout << "finished push scope" << std::endl;
         assign(lit, b_justification::mk_axiom(), true);
 
         // add negated literal
@@ -4116,32 +4108,6 @@ namespace smt {
 //        std::cout << "start_next_model:: decision_stack.assignments.back().lit " << decision_stack.assignments.back().lit << std::endl;
         SASSERT(m_assigned_literals.size() == decision_stack.size());
         SASSERT(m_assigned_literals.back() == decision_stack.assignments.back().lit);
-
-        // m_assigned_literals, flip last decision.
-//        m_assigned_literals.back().neg();
-//        assert(m_assigned_literals.back() == decision_stack.back().lit);
-//        literal flipped_decision = m_assigned_literals.back();
-//        m_assignment[flipped_decision.index()]    = l_true;
-//        m_assignment[(~flipped_decision).index()] = l_false;
-//        bool_var_data & d = get_bdata(flipped_decision.var());
-//        // set_justification(l.var(), d, j);         //TODO: do we need to change the following?
-//        // d.m_scope_lvl           = d.m_scope_lvl;
-//        d.m_phase_available        = true;
-//        d.m_phase                  = !flipped_decision.sign(); //TODO: correct?
-//        m_atom_propagation_queue.reset();   //TODO: do we need to change the following?
-//        m_atom_propagation_queue.push_back(flipped_decision);
-//        m_case_split_queue->assign_lit_eh(flipped_decision);
-
-        //TODO: Check what pop_scope does. Should I do m_assignment myself etc?
-        // Afterwards, check what decide() does to re-add back the flipped decision.
-        //
-        // if (m.has_trace_stream())
-        //      trace_assign(l, j, decision);
-        //
-        // m_case_split_queue->assign_lit_eh(l);
-
-        //TODO: We still need to update m_assigment such that the decision is not only flipped in the decision stack and circuit, but also in the other structures.
-        //TODO: Since we flipped, must we set something for propagate to work?
 
         return true;
     };
