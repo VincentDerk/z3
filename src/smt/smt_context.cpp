@@ -3744,7 +3744,8 @@ namespace smt {
 
         // clean up
         end_search();
-        //TODO: free smt_circuit??!
+        m_smt_circuit.reset();
+        decision_stack.clear();
         return status;
     }
 

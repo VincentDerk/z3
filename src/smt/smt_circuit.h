@@ -6,7 +6,6 @@
 
 #include "util/vector.h"
 #include "smt/smt_literal.h"
-//include "smt_context.h"
 
 namespace smt {
     class context;
@@ -60,6 +59,14 @@ class smt_circuit {
     smt::bool_var prev_var{sat::null_bool_var};
 
 public:
+
+    /**
+     * Reset the internal data structures
+     */
+    void reset() {
+        nodes.clear();
+        prev_var = sat::null_bool_var;
+    }
 
     /**
      * Extend the circuit with a decision node.

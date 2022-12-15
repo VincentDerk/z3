@@ -21,6 +21,7 @@ public:
 
     svector<lit_assignment> assignments;
 
+    inline void clear() { assignments.clear(); };
 
     void decide(smt::literal lit) {
         if (assignments.empty() || assignments.back().lit.var() != lit.var())
