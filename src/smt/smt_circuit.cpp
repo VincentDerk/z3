@@ -390,7 +390,7 @@ auto smt_circuit::as_expression(ast_manager& m, const smt::context& c) const -> 
             case PROPAGATION_NODE:
             case PROPAGATION_DUE_CONFLICT_NODE: {
                 SASSERT(node.children[0] < nodes.size());
-                expr *lit = c.literal2expr(node.lit);
+                expr_ref lit = c.literal2expr(node.lit);
                 expr *branch = results[node.children[0]];
                 results[node_index] = m.mk_and(lit, branch);
                 break;
@@ -400,11 +400,11 @@ auto smt_circuit::as_expression(ast_manager& m, const smt::context& c) const -> 
                 SASSERT(node.children[0] < nodes.size());
                 SASSERT(node.children[1] < nodes.size());
                 //left branch
-                expr *left_lit = c.literal2expr(node.lit);
+                expr_ref left_lit = c.literal2expr(node.lit);
                 expr *left_child = results[node.children[0]];
                 expr *left_branch = m.mk_and(left_lit, left_child);
                 // right branch
-                expr *right_lit = c.literal2expr(~node.lit);
+                expr_ref right_lit = c.literal2expr(~node.lit);
                 expr *right_child = results[node.children[1]];
                 expr *right_branch = m.mk_and(right_lit, right_child);
                 // combined
