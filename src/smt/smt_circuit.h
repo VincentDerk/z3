@@ -58,6 +58,17 @@ class smt_circuit {
      */
     smt::bool_var prev_var{sat::null_bool_var};
 
+    /**
+     * Indicates whether the previous action was a backjump.
+     * This is true when a backjump occurs.
+     * The adding of new variables to the circuit must account for this.
+     * If a new variable is added right after a backjump:
+     * - if variable == prev_var then it is the expected flipped decision, and we should not add it.
+     * - if variable != prev_var, then the backjump learned to propagate a variable which changes
+     * the subcircuit below. Hence the subcircuit below must be removed up to and incl. prev_var.
+     */
+    bool must_handle_backjump = false;
+
 public:
 
     /**
@@ -66,6 +77,7 @@ public:
     void reset() {
         nodes.clear();
         prev_var = sat::null_bool_var;
+        must_handle_backjump = false;
     }
 
     /**
@@ -114,9 +126,7 @@ public:
      * Jump back up the circuit to a literal that must be flipped in order to find a satisfying assignment
      * (conflict clause learning related). While jumping back, the nodes that do not lead to a model are removed and
      * some decision nodes are changed to propagation nodes.
-     * @param unset_literals A list of set literals that should now be unassigned, as part of the backjump.
-     * The literals in this list must be chronological: the order in which they appear must correspond to
-     * the reverse of their assignment order in this circuit. This list will be modified.
+     * @param last_lit TODO
      * @param num_lits The number of literals to unset.
      */
     void backjump(sat::literal last_lit, size_t num_lits);

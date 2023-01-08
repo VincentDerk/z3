@@ -21,14 +21,34 @@ public:
 
     svector<lit_assignment> assignments;
 
-    inline void clear() { assignments.clear(); };
+    /**
+     * Indicates the last performed action was a backjump.
+     * The backjump removed variables, including an incomplete decision.
+     * The next variable to add is either a decision (completing that decision),
+     * or a propagation.
+     * - When the next decision is added, it must be a 'complete' decision.
+     * - When the next propagation occurs, the backjump is completed (next decision hereafter
+     * is again incomplete decision).
+     */
+    bool must_handle_backjump = false;
+
+    inline void clear() {
+        assignments.clear();
+        must_handle_backjump = false;
+    };
 
     void decide(smt::literal lit) {
+        bool is_complete_dec = must_handle_backjump;
+        must_handle_backjump = false;
+        // in case of start_next_model, we flip the last decision
+        // and then Z3 adds the same decision but flipped afterwards.
+        // we do not want to store both, so we ignore the latter addition.
         if (assignments.empty() || assignments.back().lit.var() != lit.var())
-            assignments.push_back({lit, true, false});
+            assignments.push_back({lit, true, is_complete_dec});
     };
 
     void propagate(smt::literal lit) {
+        must_handle_backjump = false;
         assignments.push_back({lit, false, false});
     };
 
@@ -42,17 +62,11 @@ public:
     inline auto begin() { return assignments.begin(); };
     inline auto end() { return assignments.end(); };
 
-    inline auto size() {
-        return assignments.size();
-    }
+    inline auto size() { return assignments.size(); }
 
-    inline auto back() {
-        return assignments.back();
-    }
+    inline auto back() { return assignments.back(); }
 
-    inline auto empty() {
-        return assignments.empty();
-    }
+    inline auto empty() { return assignments.empty(); }
 
     /**
      * Flip the sign of the last incomplete decision.
@@ -76,16 +90,16 @@ public:
     auto get_last_decision_index() -> size_t;
 
     /**
-     * TODO: delete?
-     * Flip the incomplete decision at the given index to complete.
-     * @param index The index of the incomplete decision.
+     * Perform a backjump such that only num_rem_lits literals remain on the stack.
+     * @param num_rem_lits The number of remaining literals.
      */
-    void flip_decision(size_t index) {
-        assert(index < assignments.size());
-        assert(assignments[index].decision);
-        assert(!assignments[index].complete);
-        assignments.shrink(index+1); //+1, shrink's arg is num remaining elements
-        assignments[index].complete = true;
+    void backjump(size_t num_rem_lits) {
+        assert(num_rem_lits < assignments.size());
+        // Assume next must be an incomplete decision (not 100% sure though)
+        assert(assignments[num_rem_lits+1].decision);
+        assert(!assignments[num_rem_lits+1].complete);
+        must_handle_backjump = true;
+        assignments.shrink(num_rem_lits);
     }
 
     /**

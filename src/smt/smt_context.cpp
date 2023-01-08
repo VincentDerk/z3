@@ -2052,7 +2052,7 @@ namespace smt {
         while (i != old_lim) { //TODO: rewrite into for loop
             --i;
             literal l                  = m_assigned_literals[i];
-            CTRACE("assign_core", l.var() == 13, tout << "unassign " << l << "\n";);
+            TRACE("assign_core", tout << "unassign " << l << "\n";);
             m_assignment[l.index()]    = l_undef;
             m_assignment[(~l).index()] = l_undef;
             bool_var v                 = l.var();
@@ -4033,7 +4033,7 @@ namespace smt {
 //                            display_literal_smt2(verbose_stream(), lit) << ";\n";
 //                        }
 //                        verbose_stream() << ")\n";
-                        TRACE("smt_circuit", m_smt_circuit.display(tout););
+                        TRACE("smt_circuit", tout << "Before starting next model:\n"; m_smt_circuit.display(tout););
                         // start search for the next model (if possible)
                         if(start_next_model())
                             break;
@@ -4072,8 +4072,8 @@ namespace smt {
 
         // m_smt_circuit: update
         bool next_model_possible = m_smt_circuit.next_model();
-//        std::cout << "finished next_model_possible:" << next_model_possible << std::endl;
         SASSERT(next_model_possible); //Otherwise decision_stack and m_smt_circuit disagree. Would indicate bug
+        TRACE("smt_circuit_debug", tout << "After starting next model:\n"; m_smt_circuit.display(tout););
 
         // scope.push() only happens right before every decision.
         // Literals that are assigned due to propagation do not cause a new scope,
@@ -4109,7 +4109,6 @@ namespace smt {
 //        std::cout << "start_next_model:: decision_stack.assignments.back().lit " << decision_stack.assignments.back().lit << std::endl;
         SASSERT(m_assigned_literals.size() == decision_stack.size());
         SASSERT(m_assigned_literals.back() == decision_stack.assignments.back().lit);
-
         return true;
     };
 
@@ -4340,7 +4339,9 @@ namespace smt {
             // to reset cached generations... I need them to rebuild the literals
             // of the new conflict clause.
             if (relevancy()) record_relevancy(num_lits, lits);
+            TRACE("smt_circuit_debug", tout << "Circuit before backjump:\n"; m_smt_circuit.display(tout););
             circuit_backjump(new_lvl);
+            TRACE("smt_circuit_debug", tout << "Circuit after backjump:\n"; m_smt_circuit.display(tout););
             unsigned num_bool_vars = pop_scope_core(m_scope_lvl - new_lvl);
             SASSERT(m_scope_lvl == new_lvl);
             // the logical context may still be in conflict after
@@ -4447,7 +4448,7 @@ namespace smt {
         scope & s = m_scopes[new_lvl];
         auto num_removed_lits = m_assigned_literals.size() - s.m_assigned_literals_lim;
         m_smt_circuit.backjump(m_assigned_literals.back(), num_removed_lits);
-        decision_stack.flip_decision(s.m_assigned_literals_lim);
+        decision_stack.backjump(s.m_assigned_literals_lim);
     }
 
     /*
