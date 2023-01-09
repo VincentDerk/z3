@@ -3724,12 +3724,12 @@ namespace smt {
 
         SASSERT(!inconsistent());
         status = bounded_search_all();
-        TRACE("search_bug", tout << "status: " << status << ", inconsistent: " << inconsistent() << "\n";);
-        TRACE("assigned_literals_per_lvl", display_num_assigned_literals_per_lvl(tout);
-            tout << ", num_assigned: " << m_assigned_literals.size() << "\n";);
+        // TRACE("search_bug", tout << "status: " << status << ", inconsistent: " << inconsistent() << "\n";);
+        // TRACE("assigned_literals_per_lvl", display_num_assigned_literals_per_lvl(tout);
+        //    tout << ", num_assigned: " << m_assigned_literals.size() << "\n";);
         // removed restart
-        auto restart_flag = restart(status, curr_lvl);
-        assert(!restart_flag);
+        //auto restart_flag = restart(status, curr_lvl);
+        //assert(!restart_flag);
 
         TRACE("guessed_literals",
               expr_ref_vector guessed_lits(m);
@@ -3984,19 +3984,17 @@ namespace smt {
                     if (get_cancel_flag())
                         return l_undef;
 
-                    if (m_num_conflicts_since_restart > m_restart_threshold && m_scope_lvl - m_base_lvl > 2) {
-                        //TODO: remove?
-                        exit(1);
-                        TRACE("search_bug", tout << "bounded-search return undef, inconsistent: " << inconsistent() << "\n";);
-                        return l_undef; // restart
-                    } //TODO: Is there a restart feature? Should we support this? Only restart if no model is found yet?
-                    if (m_num_conflicts > m_fparams.m_max_conflicts) {
-                        //TODO: remove?
-                        exit(1);
-                        TRACE("search_bug", tout << "bounded-search return undef, inconsistent: " << inconsistent() << "\n";);
-                        m_last_search_failure = NUM_CONFLICTS;
-                        return l_undef;
-                    }
+//                    if (m_num_conflicts_since_restart > m_restart_threshold && m_scope_lvl - m_base_lvl > 2) {
+//                        //TODO: remove?
+//                        TRACE("search_bug", tout << "bounded-search return undef, inconsistent: " << inconsistent() << "\n";);
+//                        return l_undef; // restart
+//                    } //TODO: Is there a restart feature? Should we support this? Only restart if no model is found yet?
+//                    if (m_num_conflicts > m_fparams.m_max_conflicts) {
+//                        //TODO: remove?
+//                        TRACE("search_bug", tout << "bounded-search return undef, inconsistent: " << inconsistent() << "\n";);
+//                        m_last_search_failure = NUM_CONFLICTS;
+//                        return l_undef;
+//                    }
                 }
 
                 if (m_num_conflicts_since_lemma_gc > m_lemma_gc_threshold &&
