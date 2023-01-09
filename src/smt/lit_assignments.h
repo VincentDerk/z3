@@ -96,8 +96,8 @@ public:
     void backjump(size_t num_rem_lits) {
         assert(num_rem_lits < assignments.size());
         // Assume next must be an incomplete decision (not 100% sure though)
-        assert(assignments[num_rem_lits+1].decision);
-        assert(!assignments[num_rem_lits+1].complete);
+        assert(assignments[num_rem_lits].decision);
+        assert(!assignments[num_rem_lits].complete);
         must_handle_backjump = true;
         assignments.shrink(num_rem_lits);
     }
