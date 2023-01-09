@@ -3710,7 +3710,7 @@ namespace smt {
         if (get_cancel_flag())
             return l_undef;
         timeit tt(get_verbosity_level() >= 100, "smt.stats");
-        reset_model(); //TODO: reset circuit as well??
+        reset_model();
         SASSERT(at_search_level());
         TRACE("search", display(tout); display_enodes_lbls(tout););
         TRACE("search_detail", m_asserted_formulas.display(tout););
@@ -3735,9 +3735,7 @@ namespace smt {
               expr_ref_vector guessed_lits(m);
                       get_guessed_literals(guessed_lits);
                       tout << guessed_lits << "\n";);
-        //expr_ref (context::*fp)(smt::literal) const;
-        //fp = &context::literal2expr;
-        // create d-DNNF and store in m_ddnnf
+        // convert m_smt_circuit into AST expr, and store in m_ddnnf
 //        std::cout << "started mk_ddnnf()" << std::endl;
         mk_ddnnf();
 //        std::cout << "finished mk_ddnnf()" << std::endl;
@@ -3974,8 +3972,18 @@ namespace smt {
                 // conflict found
                 tick(counter);
 
-                if (!resolve_conflict())
+                if (!resolve_conflict()) {
+                    // Last made decision leads to unrecoverable conflict
+                    // (unrecoverable because all other decisions are complete)
+                    // -> remove all nodes up to the last TRUE node
+                    // -> change the (wrong) decision to a propagation node.
+                    // this would be the decision with children[1] pointing to beginning of wrong subcircuit.
+                    if (found_model == l_true) {
+                        m_smt_circuit.finalize_last_decision_conflict();
+                        TRACE("m_smt_circuit", m_smt_circuit.display(tout));
+                    }
                     return found_model;
+                }
                 SASSERT(m_scope_lvl >= m_base_lvl);
 
                 if (!inconsistent()) {
@@ -4016,8 +4024,14 @@ namespace smt {
 
             if (!decide()) {
                 // No more decisions left
-                if (inconsistent())
+                if (inconsistent()) {
+                    TRACE("smt_circuit_debug", m_smt_circuit.display(tout));
+                    SASSERT(false);
+                    exit(-1);
+                    //TODO: should we finalize circuit?
+                    //TODO: or perhaps change a certain decision to propagation???
                     return found_model;
+                }
 
                 final_check_status fcs = final_check(); //TODO: does what?
                 TRACE("final_check_result", tout << "fcs: " << fcs << " last_search_failure: " << m_last_search_failure << "\n";);

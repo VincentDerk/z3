@@ -145,6 +145,14 @@ public:
     void finalize();
 
     /**
+     * Finalize the construction of this circuit, in the specific scenario where
+     * the last decision lead to a conflict and still has to be cleaned up:
+     * - subcircuit below last flipped decision removed
+     * - last flipped decision changed to propagation.
+     */
+    void finalize_last_decision_conflict();
+
+    /**
      * Display the circuit
      */
     auto display(std::ostream & out) const -> std::ostream&;

@@ -231,7 +231,8 @@ public:
                 in->reset();
                 result.push_back(in.get());
                 // store the model in a no-op model converter, and filter fresh Booleans
-                if (in->models_enabled()) {
+                // but not when ddnnf enabled, because it can finish with a conflict (so no final model)
+                if (in->models_enabled() && !in->ddnnf_enabled()) {
                     model_ref md;
                     m_ctx->get_model(md);
                     buffer<symbol> r;

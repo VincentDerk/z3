@@ -346,6 +346,36 @@ void smt_circuit::finalize() {
     nodes.push_back({{null_circuit_ref, null_circuit_ref}, sat::null_literal, TRUE_NODE});
 }
 
+void smt_circuit::finalize_last_decision_conflict() {
+    SASSERT(nodes.size() > 2);
+    // Last made decision leads to unrecoverable conflict
+    // (unrecoverable because all other decisions are complete)
+    // 1. remove all nodes up to the last TRUE node
+    while(nodes.back().node_type != TRUE_NODE)
+        nodes.pop_back();
+    SASSERT(nodes.size() >= 2);
+
+    // 2. change (wrong) decision node to propagation node.
+    // this would be the decision with children[1] == the now nodes.size()
+    circuit_ref target_index = nodes.size();
+    circuit_ref search_index = nodes.size() - 2;
+    size_t size_lim = nodes.size();
+    while(nodes[search_index].children[1] != target_index && search_index < size_lim) {
+        // There must be a node where children[1] == target_index,
+        // otherwise there is a mistake in the code. To make sure we
+        // do not loop forever here due to a mistake (hard to detect?)
+        // we use size_lim to detect the scenario and break.
+        SASSERT(nodes[search_index].node_type != DECISION_NODE || nodes[search_index].isCompleteDecision());
+        search_index--;
+    }
+    SASSERT(search_index < nodes.size());
+    SASSERT(nodes[search_index].isCompleteDecision());
+    nodes[search_index].children[1] = null_circuit_ref;
+    nodes[search_index].node_type = PROPAGATION_DUE_CONFLICT_NODE;
+
+    // 3. no need to append TRUE node because there already is one (cf first while).
+}
+
 auto smt_circuit::display(std::ostream & out) const -> std::ostream& {
     size_t node_index;
     for(node_index = 0; node_index < nodes.size(); node_index++) {
