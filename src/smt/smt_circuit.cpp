@@ -30,7 +30,6 @@ auto smt_circuit::decide(smt::literal l) -> circuit_ref {
 
 auto smt_circuit::propagate(smt::literal l) -> circuit_ref {
     if (l.var() == prev_var) {
-        assert(false); //TODO: remove if this does not / should not happen
         must_handle_backjump = false;
         return null_circuit_ref;
     }
@@ -40,7 +39,8 @@ auto smt_circuit::propagate(smt::literal l) -> circuit_ref {
     // i.e. the backjump produced a new propagated variable instead of a flipped decision,
     // then we should add the propagated variable and start over on that subcircuit
     //
-    // hence, we remove all nodes up to and incl. prev_var.
+    // hence, we remove all nodes up to and incl. prev_var, and only then
+    // add the new propagated node to the end.
     if(must_handle_backjump) {
         while(nodes.back().lit.var() != prev_var) {
             TRACE("smt_circuit", tout << "backjump handling removed:" << nodes.back().lit.var() << "\n");
